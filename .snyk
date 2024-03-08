@@ -1,0 +1,5 @@
+ignore:
+  SNYK-JS-SQUIRRELLY-1293209:
+    - '*':
+      reason: Fixed with npm audit fix
+      expires: 2030-04-04T17:33:45.004Z
