@@ -138,6 +138,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     event Extended(address user, uint256 unlock);
     event StakeIncreased(address user, uint256 amount, uint256[] nftIds);
     event BlsAddressChanged(address user, bytes32 from, bytes32 to);
+    event SlashThresholdChanged(uint256 from, uint256 to);
 
     /**
      * @dev Modifier to temporarily allow the contract to receive NFTs.
@@ -612,6 +613,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             revert Forbidden();
         }
 
+        emit SlashThresholdChanged(_slashThreshold, threshold);
         _slashThreshold = threshold;
     }
 

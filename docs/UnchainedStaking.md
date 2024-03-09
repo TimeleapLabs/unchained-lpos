@@ -4,7 +4,7 @@
 
 > UnchainedStaking
 
-TODO
+This contract allows users to stake ERC20 tokens and ERC721 NFTs, offering functionalities to stake, unstake, extend stakes, and manage slashing in case of misbehavior. It implements an EIP-712 domain for secure off-chain signature verifications, enabling decentralized governance actions like voting or slashing without on-chain transactions for each vote. The contract includes a slashing mechanism where staked tokens can be slashed (removed from the stake) if the majority of voting power agrees on a misbehavior. Users can stake tokens and NFTs either as consumers or not, affecting their roles within the ecosystem, particularly in governance or voting processes.
 
 
 
@@ -86,6 +86,23 @@ function getChainId() external view returns (uint256)
 | Name | Type | Description |
 |---|---|---|
 | _0 | uint256 | The current chain ID. |
+
+### getSlashThreshold
+
+```solidity
+function getSlashThreshold() external view returns (uint256)
+```
+
+
+
+*Returns the current threshold for slashing to occur. This represents the minimum percentage of total voting power that must agree on a slash for it to be executed.*
+
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | uint256 | The slashing threshold as a percentage of total voting power. |
 
 ### increaseStake
 
@@ -212,6 +229,22 @@ function setBlsAddress(bytes32 blsAddress) external nonpayable
 | Name | Type | Description |
 |---|---|---|
 | blsAddress | bytes32 | The new BLS address to be set for the user. |
+
+### setSlashThreshold
+
+```solidity
+function setSlashThreshold(uint256 threshold) external nonpayable
+```
+
+
+
+*Sets the minimum percentage of total voting power required to successfully execute a slash. Only callable by the contract owner. The threshold must be at least 51% to ensure a majority vote.*
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| threshold | uint256 | The new slashing threshold as a percentage. |
 
 ### slash
 
@@ -685,6 +718,23 @@ error LengthMismatch()
 
 
 
+### NonceUsed
+
+```solidity
+error NonceUsed(uint256 index, uint256 nonce)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| index | uint256 | undefined |
+| nonce | uint256 | undefined |
+
 ### NotConsumer
 
 ```solidity
@@ -744,6 +794,17 @@ error OwnableUnauthorizedAccount(address account)
 |---|---|---|
 | account | address | undefined |
 
+### ReentrancyGuardReentrantCall
+
+```solidity
+error ReentrancyGuardReentrantCall()
+```
+
+
+
+*Unauthorized reentrant call.*
+
+
 ### SafeERC20FailedOperation
 
 ```solidity
@@ -775,6 +836,22 @@ error StakeZero()
 
 ```solidity
 error VotingPowerZero(uint256 index)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| index | uint256 | undefined |
+
+### WrongAccused
+
+```solidity
+error WrongAccused(uint256 index)
 ```
 
 
