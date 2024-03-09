@@ -113,8 +113,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
     mapping(address => Stake) private _stakes;
     mapping(bytes32 => Slash) private _slashes;
-    mapping(bytes32 => address) private _blsToAddress;
-    mapping(address => bytes32) private _addressToBls;
+    mapping(bytes20 => address) private _blsToAddress;
+    mapping(address => bytes20) private _addressToBls;
 
     bool private _acceptNft;
 
@@ -404,7 +404,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @dev Allows a user to set or update their BLS (Boneh-Lynn-Shacham) address.
      * @param blsAddress The new BLS address to be set for the user.
      */
-    function setBlsAddress(bytes32 blsAddress) external {
+    function setBlsAddress(bytes20 blsAddress) external {
         bytes32 current = _addressToBls[_msgSender()];
         _addressToBls[_msgSender()] = blsAddress;
         _blsToAddress[blsAddress] = _msgSender();
@@ -416,7 +416,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @param evm The EVM address to query the associated BLS address.
      * @return The BLS address associated with the given EVM address.
      */
-    function blsAddressOf(address evm) public view returns (bytes32) {
+    function blsAddressOf(address evm) public view returns (bytes20) {
         return _addressToBls[evm];
     }
 
@@ -425,7 +425,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @param bls The BLS address to query the associated EVM address.
      * @return The EVM address associated with the given BLS address.
      */
-    function evmAddressOf(bytes32 bls) public view returns (address) {
+    function evmAddressOf(bytes20 bls) public view returns (address) {
         return _blsToAddress[bls];
     }
 
@@ -434,7 +434,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @param bls The BLS address to query the stake information.
      * @return The stake information associated with the given BLS address.
      */
-    function stakeOf(bytes32 bls) public view returns (Stake memory) {
+    function stakeOf(bytes20 bls) public view returns (Stake memory) {
         return _stakes[evmAddressOf(bls)];
     }
 

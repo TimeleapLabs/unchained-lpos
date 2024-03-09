@@ -13,7 +13,7 @@ This contract allows users to stake ERC20 tokens and ERC721 NFTs, offering funct
 ### blsAddressOf
 
 ```solidity
-function blsAddressOf(address evm) external view returns (bytes32)
+function blsAddressOf(address evm) external view returns (bytes20)
 ```
 
 
@@ -30,12 +30,12 @@ function blsAddressOf(address evm) external view returns (bytes32)
 
 | Name | Type | Description |
 |---|---|---|
-| _0 | bytes32 | The BLS address associated with the given EVM address. |
+| _0 | bytes20 | The BLS address associated with the given EVM address. |
 
 ### evmAddressOf
 
 ```solidity
-function evmAddressOf(bytes32 bls) external view returns (address)
+function evmAddressOf(bytes20 bls) external view returns (address)
 ```
 
 
@@ -46,7 +46,7 @@ function evmAddressOf(bytes32 bls) external view returns (address)
 
 | Name | Type | Description |
 |---|---|---|
-| bls | bytes32 | The BLS address to query the associated EVM address. |
+| bls | bytes20 | The BLS address to query the associated EVM address. |
 
 #### Returns
 
@@ -217,7 +217,7 @@ function renounceOwnership() external nonpayable
 ### setBlsAddress
 
 ```solidity
-function setBlsAddress(bytes32 blsAddress) external nonpayable
+function setBlsAddress(bytes20 blsAddress) external nonpayable
 ```
 
 
@@ -228,7 +228,7 @@ function setBlsAddress(bytes32 blsAddress) external nonpayable
 
 | Name | Type | Description |
 |---|---|---|
-| blsAddress | bytes32 | The new BLS address to be set for the user. |
+| blsAddress | bytes20 | The new BLS address to be set for the user. |
 
 ### setSlashThreshold
 
@@ -285,28 +285,6 @@ function stake(uint256 duration, uint256 amount, uint256[] nftIds, bool consumer
 ### stakeOf
 
 ```solidity
-function stakeOf(bytes32 bls) external view returns (struct UnchainedStaking.Stake)
-```
-
-
-
-*Retrieves the stake information associated with a given BLS address.*
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| bls | bytes32 | The BLS address to query the stake information. |
-
-#### Returns
-
-| Name | Type | Description |
-|---|---|---|
-| _0 | UnchainedStaking.Stake | The stake information associated with the given BLS address. |
-
-### stakeOf
-
-```solidity
 function stakeOf(address evm) external view returns (struct UnchainedStaking.Stake)
 ```
 
@@ -325,6 +303,28 @@ function stakeOf(address evm) external view returns (struct UnchainedStaking.Sta
 | Name | Type | Description |
 |---|---|---|
 | _0 | UnchainedStaking.Stake | The stake information associated with the given EVM address. |
+
+### stakeOf
+
+```solidity
+function stakeOf(bytes20 bls) external view returns (struct UnchainedStaking.Stake)
+```
+
+
+
+*Retrieves the stake information associated with a given BLS address.*
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| bls | bytes20 | The BLS address to query the stake information. |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | UnchainedStaking.Stake | The stake information associated with the given BLS address. |
 
 ### transfer
 
