@@ -7,14 +7,22 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-
-//TODO: break this down into smaller components
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title UnchainedStaking
- * @notice TODO
+ * @notice This contract allows users to stake ERC20 tokens and ERC721 NFTs,
+ * offering functionalities to stake, unstake, extend stakes, and manage
+ * slashing in case of misbehavior. It implements an EIP-712 domain for secure
+ * off-chain signature verifications, enabling decentralized governance
+ * actions like voting or slashing without on-chain transactions for each vote.
+ * The contract includes a slashing mechanism where staked tokens can be
+ * slashed (removed from the stake) if the majority of voting power agrees on a
+ * misbehavior. Users can stake tokens and NFTs either as consumers or not,
+ * affecting their roles within the ecosystem, particularly in governance or
+ * voting processes.
  */
-contract UnchainedStaking is Ownable, IERC721Receiver {
+contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     IERC20 private _token;
@@ -257,7 +265,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver {
         uint256 amount,
         uint256[] memory nftIds,
         bool consumer
-    ) external {
+    ) external nonReentrant {
         if (amount == 0 && nftIds.length == 0) {
             revert AmountZero();
         }
@@ -315,7 +323,10 @@ contract UnchainedStaking is Ownable, IERC721Receiver {
      * @param amount The additional amount of tokens to add to the existing stake.
      * @param nftIds An array of additional NFT IDs to add to the stake.
      */
-    function increaseStake(uint256 amount, uint256[] memory nftIds) external {
+    function increaseStake(
+        uint256 amount,
+        uint256[] memory nftIds
+    ) external nonReentrant {
         if (amount == 0 && nftIds.length == 0) {
             revert AmountZero();
         }
@@ -341,7 +352,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver {
     /**
      * @dev Called by a user to unstake their tokens and NFTs once the stake duration has ended.
      */
-    function unstake() external {
+    function unstake() external nonReentrant {
         if (_stakes[_msgSender()].amount == 0) {
             revert StakeZero();
         }
@@ -477,7 +488,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver {
     function transfer(
         EIP712Transfer[] memory eip712Transfers,
         Signature[] memory signatures
-    ) external {
+    ) external nonReentrant {
         if (eip712Transfers.length != signatures.length) {
             revert LengthMismatch();
         }
@@ -510,7 +521,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver {
     function slash(
         EIP712Slash[] memory eip712Slashes,
         Signature[] memory signatures
-    ) external {
+    ) external nonReentrant {
         if (block.number <= _slashLock) {
             revert Forbidden();
         }
@@ -554,6 +565,34 @@ contract UnchainedStaking is Ownable, IERC721Receiver {
     }
 
     /**
+     * @dev Sets the minimum percentage of total voting power required to
+     * successfully execute a slash. Only callable by the contract owner.
+     * The threshold must be at least 51% to ensure a majority vote.
+     * @param threshold The new slashing threshold as a percentage.
+     */
+    function setSlashThreshold(uint256 threshold) external onlyOwner {
+        if (threshold < 51) {
+            revert Forbidden();
+        }
+
+        if (threshold > 100) {
+            revert Forbidden();
+        }
+
+        _slashThreshold = threshold;
+    }
+
+    /**
+     * @dev Returns the current threshold for slashing to occur. This
+     * represents the minimum percentage of total voting power that must agree
+     * on a slash for it to be executed.
+     * @return The slashing threshold as a percentage of total voting power.
+     */
+    function getSlashThreshold() external view returns (uint256) {
+        return _slashThreshold;
+    }
+
+    /**
      * @dev Sends `amount` of ERC20 `token` from contract address
      * to `recipient`
      *
@@ -567,7 +606,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver {
         address token,
         address recipient,
         uint256 amount
-    ) external onlyOwner {
+    ) external onlyOwner nonReentrant {
         if (token == address(_token)) {
             revert Forbidden();
         }
