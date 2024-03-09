@@ -1,5 +1,5 @@
-require("@nomiclabs/hardhat-waffle");
 require("solidity-coverage");
+require("@nomicfoundation/hardhat-toolbox");
 require("hardhat-contract-sizer");
 require("@primitivefi/hardhat-dodoc");
 require("@nomicfoundation/hardhat-verify");

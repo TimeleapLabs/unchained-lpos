@@ -449,6 +449,23 @@ event OwnershipTransferred(address indexed previousOwner, address indexed newOwn
 | previousOwner `indexed` | address | undefined |
 | newOwner `indexed` | address | undefined |
 
+### SlashThresholdChanged
+
+```solidity
+event SlashThresholdChanged(uint256 from, uint256 to)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| from  | uint256 | undefined |
+| to  | uint256 | undefined |
+
 ### Slashed
 
 ```solidity
