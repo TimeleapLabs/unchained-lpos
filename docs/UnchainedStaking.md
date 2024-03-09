@@ -326,6 +326,23 @@ function stakeOf(bytes20 bls) external view returns (struct UnchainedStaking.Sta
 |---|---|---|
 | _0 | UnchainedStaking.Stake | The stake information associated with the given BLS address. |
 
+### totalVotingPower
+
+```solidity
+function totalVotingPower() external view returns (uint256)
+```
+
+
+
+*Returns the total voting power represented by the sum of all staked tokens. Voting power is used in governance decisions, including the slashing process, where it determines the weight of a participant&#39;s vote. This function provides the aggregate voting power at the current state.*
+
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | uint256 | The total voting power from all staked tokens. |
+
 ### transfer
 
 ```solidity

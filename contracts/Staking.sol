@@ -9,6 +9,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+// TODO: Should there be a max voting power?
+
 /**
  * @title UnchainedStaking
  * @notice This contract allows users to stake ERC20 tokens and ERC721 NFTs,
@@ -625,6 +627,17 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      */
     function getSlashThreshold() external view returns (uint256) {
         return _slashThreshold;
+    }
+
+    /**
+     * @dev Returns the total voting power represented by the sum of all staked tokens.
+     * Voting power is used in governance decisions, including the slashing process,
+     * where it determines the weight of a participant's vote. This function provides
+     * the aggregate voting power at the current state.
+     * @return The total voting power from all staked tokens.
+     */
+    function totalVotingPower() external view returns (uint256) {
+        return _totalVotingPower;
     }
 
     /**
