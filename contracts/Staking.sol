@@ -78,14 +78,16 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     error AlreadyStaked();
     error StakeZero();
     error Forbidden();
+    error NonceUsed(uint256 index, uint256 nonce);
     error LengthMismatch();
     error NotConsumer(uint256 index);
     error InvalidSignature(uint256 index);
     error AlreadyAccused(uint256 index);
+    error WrongAccused(uint256 index);
     error AlreadySlashed(uint256 index);
     error VotingPowerZero(uint256 index);
 
-    mapping(address => uint256) private _nonces;
+    mapping(address => mapping(uint256 => bool)) private _nonces;
 
     bytes32 immutable DOMAIN_SEPARATOR;
 
@@ -376,7 +378,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             revert StakeZero();
         }
 
-        if (block.timestamp >= _stakes[_msgSender()].unlock) {
+        if (block.timestamp < _stakes[_msgSender()].unlock) {
             revert NotUnlocked();
         }
 
@@ -515,6 +517,14 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         for (uint i = 0; i < eip712Transfers.length; i++) {
             EIP712Transfer memory eip712Transfer = eip712Transfers[i];
 
+            for (uint n = 0; n < eip712Transfer.nonces.length; n++) {
+                if (_nonces[eip712Transfer.from][eip712Transfer.nonces[n]]) {
+                    revert NonceUsed(i, eip712Transfer.nonces[n]);
+                }
+
+                _nonces[eip712Transfer.from][eip712Transfer.nonces[n]] = true;
+            }
+
             if (!_stakes[eip712Transfer.from].consumer) {
                 revert NotConsumer(i);
             }
@@ -549,12 +559,18 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             revert LengthMismatch();
         }
 
+        uint256 threshold = (_totalVotingPower * _slashThreshold) / 100;
+
         for (uint i = 0; i < eip712Slashes.length; i++) {
             EIP712Slash memory eip712Slash = eip712Slashes[i];
             Slash storage slashData = _slashes[eip712Slash.incident];
 
-            if (!slashData.accusers[eip712Slash.accuser]) {
+            if (slashData.accusers[eip712Slash.accuser]) {
                 revert AlreadyAccused(i);
+            }
+
+            if (slashData.accused != eip712Slash.accused) {
+                revert WrongAccused(i);
             }
 
             Signature memory signature = signatures[i];
@@ -572,8 +588,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
             slashData.voted += userStake.amount;
             slashData.accusers[eip712Slash.accuser] = true;
-
-            uint256 threshold = (_totalVotingPower * _slashThreshold) / 100;
 
             if (slashData.voted >= threshold && !slashData.slashed) {
                 slashData.slashed = true;
