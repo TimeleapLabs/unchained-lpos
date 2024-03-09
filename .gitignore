@@ -14,3 +14,6 @@ artifacts
 
 #Python
 venv
+
+#Go
+abi

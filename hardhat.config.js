@@ -1,6 +1,7 @@
 require("solidity-coverage");
 require("@nomicfoundation/hardhat-toolbox");
 require("hardhat-contract-sizer");
+require("hardhat-abi-exporter");
 require("@primitivefi/hardhat-dodoc");
 require("@nomicfoundation/hardhat-verify");
 require("dotenv").config();
