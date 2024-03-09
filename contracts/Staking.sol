@@ -114,6 +114,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     mapping(bytes32 => address) private _blsToAddress;
     mapping(address => bytes32) private _addressToBls;
 
+    bool private _acceptNft;
+
     event Slashed(
         address consumer,
         address accuser,
@@ -134,6 +136,19 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     event Extended(address user, uint256 unlock);
     event StakeIncreased(address user, uint256 amount, uint256[] nftIds);
     event BlsAddressChanged(address user, bytes32 from, bytes32 to);
+
+    /**
+     * @dev Modifier to temporarily allow the contract to receive NFTs.
+     * This sets a flag to accept NFTs before the function executes and
+     * resets it afterward. It's used to control the flow of NFT acceptance
+     * within specific functions to ensure that NFTs can only be received
+     * under certain conditions.
+     */
+    modifier nftReceiver() {
+        _acceptNft = true;
+        _;
+        _acceptNft = false;
+    }
 
     /**
      * @dev Contract constructor
@@ -182,6 +197,10 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     ) external view returns (bytes4) {
         if (msg.sender != address(_nft)) {
             revert WrongNFT();
+        }
+
+        if (!_acceptNft) {
+            revert Forbidden();
         }
 
         return IERC721Receiver.onERC721Received.selector;
@@ -265,7 +284,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         uint256 amount,
         uint256[] memory nftIds,
         bool consumer
-    ) external nonReentrant {
+    ) external nonReentrant nftReceiver {
         if (amount == 0 && nftIds.length == 0) {
             revert AmountZero();
         }
@@ -326,7 +345,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     function increaseStake(
         uint256 amount,
         uint256[] memory nftIds
-    ) external nonReentrant {
+    ) external nonReentrant nftReceiver {
         if (amount == 0 && nftIds.length == 0) {
             revert AmountZero();
         }
