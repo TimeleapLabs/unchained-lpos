@@ -72,6 +72,11 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         bytes32 incident;
     }
 
+    struct EIP712SetSigner {
+        address staker;
+        address signer;
+    }
+
     error WrongNFT();
     error WrongEIP712Signature();
     error AmountZero();
@@ -108,6 +113,9 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             "EIP712Slash(address accused,address accuser,uint256 amount,bytes32 incident)"
         );
 
+    bytes32 constant EIP712_SET_SIGNER_TYPEHASH =
+        keccak256("EIP712SetSigner(address staker,address signer)");
+
     uint256 private _slashLock;
     uint256 private _slashThreshold = 51;
     uint256 private _totalVotingPower;
@@ -117,6 +125,9 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     mapping(bytes32 => Slash) private _slashes;
     mapping(bytes20 => address) private _blsToAddress;
     mapping(address => bytes20) private _addressToBls;
+
+    mapping(address => address) private _signerToStaker;
+    mapping(address => address) private _stakerToSigner;
 
     bool private _acceptNft;
 
@@ -141,6 +152,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     event StakeIncreased(address user, uint256 amount, uint256[] nftIds);
     event BlsAddressChanged(address user, bytes32 from, bytes32 to);
     event SlashThresholdChanged(uint256 from, uint256 to);
+    event SignerChanged(address staker, address signer);
 
     /**
      * @dev Modifier to temporarily allow the contract to receive NFTs.
@@ -273,6 +285,26 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                     eip712Slash.accuser,
                     eip712Slash.amount,
                     eip712Slash.incident
+                )
+            );
+    }
+
+    /**
+     * @dev Hashes an EIP712SetSigner struct into its EIP712 compliant representation.
+     * This is used for securely signing and verifying operations off-chain, ensuring
+     * data integrity and signer authenticity for the `setSigner` function.
+     * @param eip712SetSigner The struct containing the staker and new signer addresses.
+     * @return The EIP712 hash of the set signer operation.
+     */
+    function hash(
+        EIP712SetSigner memory eip712SetSigner
+    ) internal pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    EIP712_SET_SIGNER_TYPEHASH,
+                    eip712SetSigner.staker,
+                    eip712SetSigner.signer
                 )
             );
     }
@@ -505,6 +537,45 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     /**
+     * @dev Verifies the signatures of both the staker and the signer for a `setSigner`
+     * operation, ensuring both parties agree to the change. This method uses EIP-712
+     * signature standards for secure verification of off-chain signed data.
+     * @param eip712SetSigner Struct containing the addresses involved in the operation.
+     * @param stakerSignature Signature of the staker agreeing to the operation.
+     * @param signerSignature Signature of the signer being set, agreeing to their role.
+     * @return True if both signatures are valid and correspond to the staker and signer.
+     */
+    function verify(
+        EIP712SetSigner memory eip712SetSigner,
+        Signature memory stakerSignature,
+        Signature memory signerSignature
+    ) public view returns (bool) {
+        // Note: we need to use `encodePacked` here instead of `encode`.
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                hash(eip712SetSigner)
+            )
+        );
+        address primarySigner = ECDSA.recover(
+            digest,
+            stakerSignature.v,
+            stakerSignature.r,
+            stakerSignature.s
+        );
+        address secondarySigner = ECDSA.recover(
+            digest,
+            signerSignature.v,
+            signerSignature.r,
+            signerSignature.s
+        );
+        return
+            primarySigner == eip712SetSigner.staker &&
+            secondarySigner == eip712SetSigner.signer;
+    }
+
+    /**
      * @dev Transfers a batch of ERC20 tokens according to the specified ERC20Transfers and validates each transfer with a corresponding signature.
      * @param eip712Transfers An array of EIP712Transfer structures specifying the transfer details.
      * @param signatures An array of signatures corresponding to each EIP712Transfer to validate the transfers.
@@ -542,6 +613,51 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             _stakes[eip712Transfer.from].amount -= eip712Transfer.amount;
             _token.safeTransfer(eip712Transfer.to, eip712Transfer.amount);
         }
+    }
+
+    /**
+     * @dev Allows a staker to securely designate another address as their signer
+     * for signing operations, using EIP-712 signatures for verification. This can
+     * delegate signing authority while retaining control over staked assets.
+     * @param eip712SetSigner The struct containing the staker and signer addresses.
+     * @param stakerSignature The staker's signature verifying their agreement.
+     * @param signerSignature The signer's signature verifying their acceptance.
+     */
+    function setSigner(
+        EIP712SetSigner memory eip712SetSigner,
+        Signature memory stakerSignature,
+        Signature memory signerSignature
+    ) external {
+        bool valid = verify(eip712SetSigner, stakerSignature, signerSignature);
+
+        if (!valid) {
+            revert Forbidden();
+        }
+
+        _signerToStaker[eip712SetSigner.signer] = eip712SetSigner.staker;
+        _stakerToSigner[eip712SetSigner.staker] = eip712SetSigner.signer;
+
+        emit SignerChanged(eip712SetSigner.staker, eip712SetSigner.signer);
+    }
+
+    /**
+     * @dev Returns the staker address associated with a given signer address.
+     * This can be used to look up the controlling staker of a signer.
+     * @param signer The address of the signer.
+     * @return The address of the staker who set the signer.
+     */
+    function signerToStaker(address signer) external view returns (address) {
+        return _signerToStaker[signer];
+    }
+
+    /**
+     * @dev Returns the signer address associated with a given staker address.
+     * This function allows querying who has been designated as the signer for a staker.
+     * @param staker The address of the staker.
+     * @return The address of the signer set by the staker.
+     */
+    function stakerToSigner(address staker) external view returns (address) {
+        return _signerToStaker[staker];
     }
 
     /**
