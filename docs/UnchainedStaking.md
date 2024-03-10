@@ -87,10 +87,10 @@ function getChainId() external view returns (uint256)
 |---|---|---|
 | _0 | uint256 | The current chain ID. |
 
-### getSlashThreshold
+### getConsensusThreshold
 
 ```solidity
-function getSlashThreshold() external view returns (uint256)
+function getConsensusThreshold() external view returns (uint256)
 ```
 
 
@@ -103,6 +103,96 @@ function getSlashThreshold() external view returns (uint256)
 | Name | Type | Description |
 |---|---|---|
 | _0 | uint256 | The slashing threshold as a percentage of total voting power. |
+
+### getHasRequestedSetParams
+
+```solidity
+function getHasRequestedSetParams(UnchainedStaking.EIP712SetParams key, address requester) external view returns (bool)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| key | UnchainedStaking.EIP712SetParams | undefined |
+| requester | address | undefined |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | bool | undefined |
+
+### getHasSlashed
+
+```solidity
+function getHasSlashed(UnchainedStaking.EIP712SlashKey key, address slasher) external view returns (bool)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| key | UnchainedStaking.EIP712SlashKey | undefined |
+| slasher | address | undefined |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | bool | undefined |
+
+### getSetParamsData
+
+```solidity
+function getSetParamsData(UnchainedStaking.EIP712SetParams key) external view returns (struct UnchainedStaking.ParamsInfo)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| key | UnchainedStaking.EIP712SetParams | undefined |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | UnchainedStaking.ParamsInfo | undefined |
+
+### getSlashData
+
+```solidity
+function getSlashData(UnchainedStaking.EIP712SlashKey key) external view returns (struct UnchainedStaking.SlashInfo)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| key | UnchainedStaking.EIP712SlashKey | undefined |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | UnchainedStaking.SlashInfo | undefined |
 
 ### increaseStake
 
@@ -230,21 +320,62 @@ function setBlsAddress(bytes20 blsAddress) external nonpayable
 |---|---|---|
 | blsAddress | bytes20 | The new BLS address to be set for the user. |
 
-### setSlashThreshold
+### setParams
 
 ```solidity
-function setSlashThreshold(uint256 threshold) external nonpayable
+function setParams(UnchainedStaking.EIP712SetParams[] eip712SetParams, UnchainedStaking.Signature[] signatures) external nonpayable
 ```
 
 
 
-*Sets the minimum percentage of total voting power required to successfully execute a slash. Only callable by the contract owner. The threshold must be at least 51% to ensure a majority vote.*
+
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| threshold | uint256 | The new slashing threshold as a percentage. |
+| eip712SetParams | UnchainedStaking.EIP712SetParams[] | undefined |
+| signatures | UnchainedStaking.Signature[] | undefined |
+
+### setSigner
+
+```solidity
+function setSigner(UnchainedStaking.EIP712SetSigner eip712SetSigner, UnchainedStaking.Signature stakerSignature, UnchainedStaking.Signature signerSignature) external nonpayable
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| eip712SetSigner | UnchainedStaking.EIP712SetSigner | undefined |
+| stakerSignature | UnchainedStaking.Signature | undefined |
+| signerSignature | UnchainedStaking.Signature | undefined |
+
+### signerToStaker
+
+```solidity
+function signerToStaker(address signer) external view returns (address)
+```
+
+
+
+*Returns the staker address associated with a given signer address. This can be used to look up the controlling staker of a signer.*
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| signer | address | The address of the signer. |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | address | The address of the staker who set the signer. |
 
 ### slash
 
@@ -326,6 +457,28 @@ function stakeOf(bytes20 bls) external view returns (struct UnchainedStaking.Sta
 |---|---|---|
 | _0 | UnchainedStaking.Stake | The stake information associated with the given BLS address. |
 
+### stakerToSigner
+
+```solidity
+function stakerToSigner(address staker) external view returns (address)
+```
+
+
+
+*Returns the signer address associated with a given staker address. This function allows querying who has been designated as the signer for a staker.*
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| staker | address | The address of the staker. |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | address | The address of the signer set by the staker. |
+
 ### totalVotingPower
 
 ```solidity
@@ -390,7 +543,7 @@ function unstake() external nonpayable
 ### verify
 
 ```solidity
-function verify(UnchainedStaking.EIP712Transfer eip712Transfer, UnchainedStaking.Signature signature) external view returns (bool)
+function verify(UnchainedStaking.EIP712SetParams eip712SetParam, UnchainedStaking.Signature signature) external view returns (bool)
 ```
 
 
@@ -401,8 +554,32 @@ function verify(UnchainedStaking.EIP712Transfer eip712Transfer, UnchainedStaking
 
 | Name | Type | Description |
 |---|---|---|
-| eip712Transfer | UnchainedStaking.EIP712Transfer | undefined |
+| eip712SetParam | UnchainedStaking.EIP712SetParams | undefined |
 | signature | UnchainedStaking.Signature | undefined |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | bool | undefined |
+
+### verify
+
+```solidity
+function verify(UnchainedStaking.EIP712SetSigner eip712SetSigner, UnchainedStaking.Signature stakerSignature, UnchainedStaking.Signature signerSignature) external view returns (bool)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| eip712SetSigner | UnchainedStaking.EIP712SetSigner | undefined |
+| stakerSignature | UnchainedStaking.Signature | undefined |
+| signerSignature | UnchainedStaking.Signature | undefined |
 
 #### Returns
 
@@ -413,6 +590,26 @@ function verify(UnchainedStaking.EIP712Transfer eip712Transfer, UnchainedStaking
 
 
 ## Events
+
+### Accused
+
+```solidity
+event Accused(address accused, address accuser, uint256 amount, uint256 voted, bytes32 incident)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| accused  | address | undefined |
+| accuser  | address | undefined |
+| amount  | uint256 | undefined |
+| voted  | uint256 | undefined |
+| incident  | bytes32 | undefined |
 
 ### BlsAddressChanged
 
@@ -466,10 +663,10 @@ event OwnershipTransferred(address indexed previousOwner, address indexed newOwn
 | previousOwner `indexed` | address | undefined |
 | newOwner `indexed` | address | undefined |
 
-### SlashThresholdChanged
+### ParamsChanged
 
 ```solidity
-event SlashThresholdChanged(uint256 from, uint256 to)
+event ParamsChanged(address token, address nft, uint256 threshold, address collector, uint256 voted, uint256 nonce)
 ```
 
 
@@ -480,13 +677,34 @@ event SlashThresholdChanged(uint256 from, uint256 to)
 
 | Name | Type | Description |
 |---|---|---|
-| from  | uint256 | undefined |
-| to  | uint256 | undefined |
+| token  | address | undefined |
+| nft  | address | undefined |
+| threshold  | uint256 | undefined |
+| collector  | address | undefined |
+| voted  | uint256 | undefined |
+| nonce  | uint256 | undefined |
+
+### SignerChanged
+
+```solidity
+event SignerChanged(address staker, address signer)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| staker  | address | undefined |
+| signer  | address | undefined |
 
 ### Slashed
 
 ```solidity
-event Slashed(address consumer, address accuser, uint256 amount, uint256 voted, bytes32 incident)
+event Slashed(address slashed, bytes32 incident, uint256 amount, uint256 voted)
 ```
 
 
@@ -497,11 +715,10 @@ event Slashed(address consumer, address accuser, uint256 amount, uint256 voted, 
 
 | Name | Type | Description |
 |---|---|---|
-| consumer  | address | undefined |
-| accuser  | address | undefined |
+| slashed  | address | undefined |
+| incident  | bytes32 | undefined |
 | amount  | uint256 | undefined |
 | voted  | uint256 | undefined |
-| incident  | bytes32 | undefined |
 
 ### StakeIncreased
 
@@ -559,6 +776,23 @@ event UnStaked(address user, uint256 amount, uint256[] nftIds)
 | amount  | uint256 | undefined |
 | nftIds  | uint256[] | undefined |
 
+### VotedForParams
+
+```solidity
+event VotedForParams(address user, uint256 nonce)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| user  | address | undefined |
+| nonce  | uint256 | undefined |
+
 
 
 ## Errors
@@ -594,6 +828,33 @@ error AddressInsufficientBalance(address account)
 | Name | Type | Description |
 |---|---|---|
 | account | address | undefined |
+
+### AddressZero
+
+```solidity
+error AddressZero()
+```
+
+
+
+
+
+
+### AlreadyAccepted
+
+```solidity
+error AlreadyAccepted(uint256 index)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| index | uint256 | undefined |
 
 ### AlreadyAccused
 
@@ -637,6 +898,22 @@ error AlreadyStaked()
 
 
 
+
+### AlreadyVoted
+
+```solidity
+error AlreadyVoted(uint256 index)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| index | uint256 | undefined |
 
 ### AmountZero
 
@@ -870,22 +1147,6 @@ error StakeZero()
 
 ```solidity
 error VotingPowerZero(uint256 index)
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| index | uint256 | undefined |
-
-### WrongAccused
-
-```solidity
-error WrongAccused(uint256 index)
 ```
 
 
