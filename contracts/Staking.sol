@@ -535,6 +535,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
         uint256 amount = _stakes[_msgSender()].amount;
         uint256[] memory nftIds = _stakes[_msgSender()].nftIds;
+
         _stakes[_msgSender()].amount = 0;
         _stakes[_msgSender()].nftIds = new uint256[](0);
 
@@ -626,7 +627,9 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             signature.r,
             signature.s
         );
-        return signer == eip712Transfer.from;
+        return
+            eip712Transfer.from == signer ||
+            eip712Transfer.from == signerToStaker(signer);
     }
 
     /**
@@ -649,7 +652,34 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             signature.r,
             signature.s
         );
-        return signer == eip712Slash.accuser;
+        return
+            eip712Slash.accuser == signer ||
+            eip712Slash.accuser == signerToStaker(signer);
+    }
+
+    /**
+     * @dev Verifies the authenticity of a slash request using EIP-712 typed data signing.
+     * @param eip712SetParam The EIP712Slash structure containing the slash request details.
+     * @param signature The signature to verify the slash request.
+     * @return True if the signature is valid and matches the slash request details, false otherwise.
+     */
+    function verify(
+        EIP712SetParams memory eip712SetParam,
+        Signature memory signature
+    ) public view returns (bool) {
+        // Note: we need to use `encodePacked` here instead of `encode`.
+        bytes32 digest = keccak256(
+            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hash(eip712SetParam))
+        );
+        address signer = ECDSA.recover(
+            digest,
+            signature.v,
+            signature.r,
+            signature.s
+        );
+        return
+            eip712SetParam.requester == signer ||
+            eip712SetParam.requester == signerToStaker(signer);
     }
 
     /**
@@ -692,29 +722,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     /**
-     * @dev Verifies the authenticity of a slash request using EIP-712 typed data signing.
-     * @param eip712SetParam The EIP712Slash structure containing the slash request details.
-     * @param signature The signature to verify the slash request.
-     * @return True if the signature is valid and matches the slash request details, false otherwise.
-     */
-    function verify(
-        EIP712SetParams memory eip712SetParam,
-        Signature memory signature
-    ) public view returns (bool) {
-        // Note: we need to use `encodePacked` here instead of `encode`.
-        bytes32 digest = keccak256(
-            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hash(eip712SetParam))
-        );
-        address signer = ECDSA.recover(
-            digest,
-            signature.v,
-            signature.r,
-            signature.s
-        );
-        return signer == eip712SetParam.requester;
-    }
-
-    /**
      * @dev Transfers a batch of ERC20 tokens according to the specified ERC20Transfers and validates each transfer with a corresponding signature.
      * @param eip712Transfers An array of EIP712Transfer structures specifying the transfer details.
      * @param signatures An array of signatures corresponding to each EIP712Transfer to validate the transfers.
@@ -750,6 +757,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             }
 
             _stakes[eip712Transfer.from].amount -= eip712Transfer.amount;
+            _totalVotingPower -= eip712Transfer.amount;
             _token.safeTransfer(eip712Transfer.to, eip712Transfer.amount);
         }
     }
@@ -785,7 +793,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @param signer The address of the signer.
      * @return The address of the staker who set the signer.
      */
-    function signerToStaker(address signer) external view returns (address) {
+    function signerToStaker(address signer) public view returns (address) {
         return _signerToStaker[signer];
     }
 
@@ -867,7 +875,9 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             if (slashData.info.voted >= threshold) {
                 _incidentTracker[eip712Slash.incident] = true;
                 slashData.info.slashed = true;
+
                 _stakes[eip712Slash.accused].amount -= slashData.info.amount;
+                _totalVotingPower -= slashData.info.amount;
 
                 _token.safeTransfer(
                     _slashCollectionAddr,
