@@ -109,6 +109,15 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         uint256 nonce;
     }
 
+    struct EIP712SetParamsKey {
+        address token;
+        address nft;
+        uint256 threshold;
+        uint256 expiration;
+        address collector;
+        uint256 nonce;
+    }
+
     struct EIP712SetSigner {
         address staker;
         address signer;
@@ -130,12 +139,10 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     error NotConsumer(uint256 index);
     error InvalidSignature(uint256 index);
     error AlreadyAccused(uint256 index);
-    error AlreadySlashed(uint256 index);
     error VotingPowerZero(uint256 index);
     error AlreadyVoted(uint256 index);
-    error AlreadyAccepted(uint256 index);
     error TopicExpired(uint256 index);
-    error StakeExpiredBeforeVote(uint256 index);
+    error StakeExpiresBeforeVote(uint256 index);
 
     mapping(address => mapping(uint256 => bool)) private _nonces;
 
@@ -167,6 +174,11 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     bytes32 constant EIP712_SET_PARAMS_TYPEHASH =
         keccak256(
             "EIP712SetParams(address requester,address token,address nft,uint256 threshold,uint256 expiration,address collector,uint256 nonce)"
+        );
+
+    bytes32 constant EIP712_SET_PARAMS_KEY_TYPEHASH =
+        keccak256(
+            "EIP712SetParams(address token,address nft,uint256 threshold,uint256 expiration,address collector,uint256 nonce)"
         );
 
     uint256 private _consensusLock;
@@ -433,6 +445,35 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                     eip712SetParams.expiration,
                     eip712SetParams.collector,
                     eip712SetParams.nonce
+                )
+            );
+    }
+
+    /**
+     * @dev Computes the EIP-712 compliant hash of a set of parameters intended for a specific operation.
+     * This operation could involve setting new contract parameters such as token address, NFT address,
+     * a threshold value, a collector address, and a nonce for operation uniqueness. The hash is created
+     * following the EIP-712 standard, which allows for securely signed data to be verified by the contract.
+     * This function is internal and pure, meaning it doesn't alter or read the contract's state.
+     * @param eip712SetParamsKey The struct containing the parameters to be hashed. This includes token and
+     * NFT addresses, a threshold value for certain operations, a collector address that may receive funds
+     * or penalties, and a nonce to ensure the hash's uniqueness.
+     * @return The EIP-712 compliant hash of the provided parameters, which can be used to verify signatures
+     * or as a key in mappings.
+     */
+    function hash(
+        EIP712SetParamsKey memory eip712SetParamsKey
+    ) internal pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    EIP712_SET_PARAMS_KEY_TYPEHASH,
+                    eip712SetParamsKey.token,
+                    eip712SetParamsKey.nft,
+                    eip712SetParamsKey.threshold,
+                    eip712SetParamsKey.expiration,
+                    eip712SetParamsKey.collector,
+                    eip712SetParamsKey.nonce
                 )
             );
     }
@@ -851,7 +892,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             EIP712Slash memory eip712Slash = eip712Slashes[i];
 
             if (_incidentTracker[eip712Slash.incident]) {
-                revert AlreadySlashed(i);
+                continue;
             }
 
             EIP712SlashKey memory slashKey = EIP712SlashKey(
@@ -879,7 +920,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             }
 
             if (userStake.unlock <= expires) {
-                revert StakeExpiredBeforeVote(i);
+                revert StakeExpiresBeforeVote(i);
             }
 
             Slash storage slashData = _slashes[eipHash];
@@ -1007,10 +1048,19 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             EIP712SetParams memory eip712SetParam = eip712SetParams[i];
 
             if (_setParamsTracker[eip712SetParam.nonce]) {
-                revert AlreadyAccepted(i);
+                continue;
             }
 
-            bytes32 eipHash = hash(eip712SetParam);
+            EIP712SetParamsKey memory key = EIP712SetParamsKey(
+                eip712SetParam.token,
+                eip712SetParam.nft,
+                eip712SetParam.threshold,
+                eip712SetParam.expiration,
+                eip712SetParam.collector,
+                eip712SetParam.nonce
+            );
+
+            bytes32 eipHash = hash(key);
 
             if (_firstReported[eipHash] == 0) {
                 _firstReported[eipHash] = block.timestamp;
@@ -1029,7 +1079,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             }
 
             if (userStake.unlock <= expires) {
-                revert StakeExpiredBeforeVote(i);
+                revert StakeExpiresBeforeVote(i);
             }
 
             Params storage setParamsData = _setParams[eipHash];
@@ -1092,6 +1142,26 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         bytes32 eipHash = hash(key);
         Params storage setParamsData = _setParams[eipHash];
         return setParamsData.info;
+    }
+
+    /**
+     * @dev Retrieves the current contract parameters, including the token and NFT addresses,
+     * the consensus threshold, the voting topic expiration, and the collector address for
+     * slash penalties. This function returns the current state of the contract's parameters.
+     * @return ParamsInfo A struct containing the current contract parameters.
+     */
+    function getParams() external view returns (ParamsInfo memory) {
+        return
+            ParamsInfo(
+                address(_token),
+                address(_nft),
+                _consensusThreshold,
+                _votingTopicExpiration,
+                _slashCollectionAddr,
+                0,
+                0,
+                true
+            );
     }
 
     /**

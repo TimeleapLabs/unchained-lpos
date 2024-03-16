@@ -150,6 +150,23 @@ function getHasSlashed(UnchainedStaking.EIP712SlashKey key, address slasher) ext
 |---|---|---|
 | _0 | bool | undefined |
 
+### getParams
+
+```solidity
+function getParams() external view returns (struct UnchainedStaking.ParamsInfo)
+```
+
+
+
+*Retrieves the current contract parameters, including the token and NFT addresses, the consensus threshold, the voting topic expiration, and the collector address for slash penalties. This function returns the current state of the contract&#39;s parameters.*
+
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | UnchainedStaking.ParamsInfo | ParamsInfo A struct containing the current contract parameters. |
+
 ### getSetParamsData
 
 ```solidity
@@ -852,42 +869,10 @@ error AddressZero()
 
 
 
-### AlreadyAccepted
-
-```solidity
-error AlreadyAccepted(uint256 index)
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| index | uint256 | undefined |
-
 ### AlreadyAccused
 
 ```solidity
 error AlreadyAccused(uint256 index)
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| index | uint256 | undefined |
-
-### AlreadySlashed
-
-```solidity
-error AlreadySlashed(uint256 index)
 ```
 
 
@@ -1155,10 +1140,10 @@ error SafeERC20FailedOperation(address token)
 |---|---|---|
 | token | address | undefined |
 
-### StakeExpiredBeforeVote
+### StakeExpiresBeforeVote
 
 ```solidity
-error StakeExpiredBeforeVote(uint256 index)
+error StakeExpiresBeforeVote(uint256 index)
 ```
 
 
