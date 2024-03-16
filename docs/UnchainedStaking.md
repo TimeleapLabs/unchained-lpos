@@ -543,7 +543,7 @@ function unstake() external nonpayable
 ### verify
 
 ```solidity
-function verify(UnchainedStaking.EIP712SetParams eip712SetParam, UnchainedStaking.Signature signature) external view returns (bool)
+function verify(UnchainedStaking.EIP712Transfer eip712Transfer, UnchainedStaking.Signature signature) external view returns (bool)
 ```
 
 
@@ -554,7 +554,7 @@ function verify(UnchainedStaking.EIP712SetParams eip712SetParam, UnchainedStakin
 
 | Name | Type | Description |
 |---|---|---|
-| eip712SetParam | UnchainedStaking.EIP712SetParams | undefined |
+| eip712Transfer | UnchainedStaking.EIP712Transfer | undefined |
 | signature | UnchainedStaking.Signature | undefined |
 
 #### Returns
@@ -666,7 +666,7 @@ event OwnershipTransferred(address indexed previousOwner, address indexed newOwn
 ### ParamsChanged
 
 ```solidity
-event ParamsChanged(address token, address nft, uint256 threshold, address collector, uint256 voted, uint256 nonce)
+event ParamsChanged(address token, address nft, uint256 threshold, uint256 expiration, address collector, uint256 voted, uint256 nonce)
 ```
 
 
@@ -680,6 +680,7 @@ event ParamsChanged(address token, address nft, uint256 threshold, address colle
 | token  | address | undefined |
 | nft  | address | undefined |
 | threshold  | uint256 | undefined |
+| expiration  | uint256 | undefined |
 | collector  | address | undefined |
 | voted  | uint256 | undefined |
 | nonce  | uint256 | undefined |
@@ -813,6 +814,17 @@ error AddressEmptyCode(address target)
 |---|---|---|
 | target | address | undefined |
 
+### AddressInUse
+
+```solidity
+error AddressInUse()
+```
+
+
+
+
+
+
 ### AddressInsufficientBalance
 
 ```solidity
@@ -919,6 +931,17 @@ error AlreadyVoted(uint256 index)
 
 ```solidity
 error AmountZero()
+```
+
+
+
+
+
+
+### BlsNotSet
+
+```solidity
+error BlsNotSet()
 ```
 
 
@@ -1132,6 +1155,22 @@ error SafeERC20FailedOperation(address token)
 |---|---|---|
 | token | address | undefined |
 
+### StakeExpiredBeforeVote
+
+```solidity
+error StakeExpiredBeforeVote(uint256 index)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| index | uint256 | undefined |
+
 ### StakeZero
 
 ```solidity
@@ -1142,6 +1181,22 @@ error StakeZero()
 
 
 
+
+### TopicExpired
+
+```solidity
+error TopicExpired(uint256 index)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| index | uint256 | undefined |
 
 ### VotingPowerZero
 

@@ -1,4 +1,4 @@
-# DKatana
+# ERC721Enumerable
 
 
 
@@ -6,7 +6,7 @@
 
 
 
-
+*This implements an optional extension of {ERC721} defined in the EIP that adds enumerability of all the token ids in the contract as well as all token ids owned by each account. CAUTION: `ERC721` extensions that implement custom `balanceOf` logic, such as `ERC721Consecutive`, interfere with enumerability and should not be used together with `ERC721Enumerable`.*
 
 ## Methods
 
@@ -94,23 +94,6 @@ function isApprovedForAll(address owner, address operator) external view returns
 |---|---|---|
 | _0 | bool | undefined |
 
-### mint
-
-```solidity
-function mint(uint256 fromId, uint256 toId) external nonpayable
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| fromId | uint256 | undefined |
-| toId | uint256 | undefined |
-
 ### name
 
 ```solidity
@@ -127,23 +110,6 @@ function name() external view returns (string)
 | Name | Type | Description |
 |---|---|---|
 | _0 | string | undefined |
-
-### owner
-
-```solidity
-function owner() external view returns (address)
-```
-
-
-
-*Returns the address of the current owner.*
-
-
-#### Returns
-
-| Name | Type | Description |
-|---|---|---|
-| _0 | address | undefined |
 
 ### ownerOf
 
@@ -166,17 +132,6 @@ function ownerOf(uint256 tokenId) external view returns (address)
 | Name | Type | Description |
 |---|---|---|
 | _0 | address | undefined |
-
-### renounceOwnership
-
-```solidity
-function renounceOwnership() external nonpayable
-```
-
-
-
-*Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.*
-
 
 ### safeTransferFrom
 
@@ -240,7 +195,7 @@ function supportsInterface(bytes4 interfaceId) external view returns (bool)
 
 
 
-
+*See {IERC165-supportsInterface}.*
 
 #### Parameters
 
@@ -338,28 +293,6 @@ function tokenURI(uint256 tokenId) external view returns (string)
 |---|---|---|
 | _0 | string | undefined |
 
-### tokensOfOwner
-
-```solidity
-function tokensOfOwner(address owner) external view returns (uint256[])
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| owner | address | undefined |
-
-#### Returns
-
-| Name | Type | Description |
-|---|---|---|
-| _0 | uint256[] | undefined |
-
 ### totalSupply
 
 ```solidity
@@ -394,22 +327,6 @@ function transferFrom(address from, address to, uint256 tokenId) external nonpay
 | from | address | undefined |
 | to | address | undefined |
 | tokenId | uint256 | undefined |
-
-### transferOwnership
-
-```solidity
-function transferOwnership(address newOwner) external nonpayable
-```
-
-
-
-*Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.*
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| newOwner | address | undefined |
 
 
 
@@ -450,23 +367,6 @@ event ApprovalForAll(address indexed owner, address indexed operator, bool appro
 | owner `indexed` | address | undefined |
 | operator `indexed` | address | undefined |
 | approved  | bool | undefined |
-
-### OwnershipTransferred
-
-```solidity
-event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| previousOwner `indexed` | address | undefined |
-| newOwner `indexed` | address | undefined |
 
 ### Transfer
 
@@ -648,37 +548,5 @@ error ERC721OutOfBoundsIndex(address owner, uint256 index)
 |---|---|---|
 | owner | address | undefined |
 | index | uint256 | undefined |
-
-### OwnableInvalidOwner
-
-```solidity
-error OwnableInvalidOwner(address owner)
-```
-
-
-
-*The owner is not a valid owner account. (eg. `address(0)`)*
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| owner | address | undefined |
-
-### OwnableUnauthorizedAccount
-
-```solidity
-error OwnableUnauthorizedAccount(address account)
-```
-
-
-
-*The caller account is not authorized to perform an operation.*
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| account | address | undefined |
 
 
