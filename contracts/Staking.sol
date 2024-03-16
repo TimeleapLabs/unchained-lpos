@@ -10,6 +10,8 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 // TODO: Should there be a max voting power?
+// TODO: All voting trackers should be hash based
+// TODO: All voting matters should have an expiration date
 
 /**
  * @title UnchainedStaking
@@ -67,6 +69,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         address token;
         address nft;
         uint256 threshold;
+        uint256 expiration;
         address collector;
         uint256 voted;
         uint256 nonce;
@@ -103,6 +106,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         address token;
         address nft;
         uint256 threshold;
+        uint256 expiration;
         address collector;
         uint256 nonce;
     }
@@ -119,6 +123,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     error AddressZero();
     error NotUnlocked();
     error AlreadyStaked();
+    error AddressInUse();
+    error BlsNotSet();
     error StakeZero();
     error Forbidden();
     error NonceUsed(uint256 index, uint256 nonce);
@@ -130,6 +136,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     error VotingPowerZero(uint256 index);
     error AlreadyVoted(uint256 index);
     error AlreadyAccepted(uint256 index);
+    error TopicExpired(uint256 index);
+    error StakeExpiredBeforeVote(uint256 index);
 
     mapping(address => mapping(uint256 => bool)) private _nonces;
 
@@ -160,17 +168,19 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
     bytes32 constant EIP712_SET_PARAMS_TYPEHASH =
         keccak256(
-            "EIP712SetParams(address requester,address token,address nft,uint256 threshold,address collector,uint256 nonce)"
+            "EIP712SetParams(address requester,address token,address nft,uint256 threshold,uint256 expiration,address collector,uint256 nonce)"
         );
 
     uint256 private _consensusLock;
     uint256 private _consensusThreshold = 51;
+    uint256 private _votingTopicExpiration = 1 days;
     uint256 private _totalVotingPower;
     address private _slashCollectionAddr;
 
     mapping(address => Stake) private _stakes;
     mapping(bytes32 => Slash) private _slashes;
     mapping(bytes32 => bool) private _incidentTracker;
+
     mapping(bytes20 => address) private _blsToAddress;
     mapping(address => bytes20) private _addressToBls;
 
@@ -179,6 +189,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
     mapping(uint256 => bool) private _setParamsTracker;
     mapping(bytes32 => Params) private _setParams;
+
+    mapping(bytes32 => uint256) private _firstReported;
 
     bool private _acceptNft;
 
@@ -215,6 +227,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         address token,
         address nft,
         uint256 threshold,
+        uint256 expiration,
         address collector,
         uint256 voted,
         uint256 nonce
@@ -419,6 +432,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                     eip712SetParams.token,
                     eip712SetParams.nft,
                     eip712SetParams.threshold,
+                    eip712SetParams.expiration,
                     eip712SetParams.collector,
                     eip712SetParams.nonce
                 )
@@ -448,6 +462,10 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
         if (_stakes[_msgSender()].amount > 0) {
             revert AlreadyStaked();
+        }
+
+        if (blsAddressOf(_msgSender()) == bytes20(0)) {
+            revert BlsNotSet();
         }
 
         if (amount > 0) {
@@ -556,6 +574,10 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @param blsAddress The new BLS address to be set for the user.
      */
     function setBlsAddress(bytes20 blsAddress) external {
+        if (evmAddressOf(blsAddress) != address(0)) {
+            revert AddressInUse();
+        }
+
         bytes32 current = _addressToBls[_msgSender()];
         _addressToBls[_msgSender()] = blsAddress;
         _blsToAddress[blsAddress] = _msgSender();
@@ -841,6 +863,27 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             );
 
             bytes32 eipHash = hash(slashKey);
+
+            if (_firstReported[eipHash] == 0) {
+                _firstReported[eipHash] = block.timestamp;
+            }
+
+            uint256 expires = _firstReported[eipHash] + _votingTopicExpiration;
+
+            if (block.timestamp > expires) {
+                revert TopicExpired(i);
+            }
+
+            Stake memory userStake = _stakes[eip712Slash.accuser];
+
+            if (userStake.amount == 0) {
+                revert VotingPowerZero(i);
+            }
+
+            if (userStake.unlock <= expires) {
+                revert StakeExpiredBeforeVote(i);
+            }
+
             Slash storage slashData = _slashes[eipHash];
 
             if (slashData.accusers[eip712Slash.accuser]) {
@@ -852,12 +895,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
             if (!valid) {
                 revert InvalidSignature(i);
-            }
-
-            Stake memory userStake = _stakes[eip712Slash.accuser];
-
-            if (userStake.amount == 0) {
-                revert VotingPowerZero(i);
             }
 
             slashData.info.voted += userStake.amount;
@@ -976,6 +1013,27 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             }
 
             bytes32 eipHash = hash(eip712SetParam);
+
+            if (_firstReported[eipHash] == 0) {
+                _firstReported[eipHash] = block.timestamp;
+            }
+
+            uint256 expires = _firstReported[eipHash] + _votingTopicExpiration;
+
+            if (block.timestamp > expires) {
+                revert TopicExpired(i);
+            }
+
+            Stake memory userStake = _stakes[eip712SetParam.requester];
+
+            if (userStake.amount == 0) {
+                revert VotingPowerZero(i);
+            }
+
+            if (userStake.unlock <= expires) {
+                revert StakeExpiredBeforeVote(i);
+            }
+
             Params storage setParamsData = _setParams[eipHash];
 
             if (setParamsData.requesters[eip712SetParam.requester]) {
@@ -989,18 +1047,13 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 revert InvalidSignature(i);
             }
 
-            Stake memory userStake = _stakes[eip712SetParam.requester];
-
-            if (userStake.amount == 0) {
-                revert VotingPowerZero(i);
-            }
-
             setParamsData.requesters[eip712SetParam.requester] = true;
 
             setParamsData.info.voted += userStake.amount;
             setParamsData.info.token = eip712SetParam.token;
             setParamsData.info.nft = eip712SetParam.nft;
             setParamsData.info.threshold = eip712SetParam.threshold;
+            setParamsData.info.expiration = eip712SetParam.expiration;
             setParamsData.info.collector = eip712SetParam.collector;
             setParamsData.info.nonce = eip712SetParam.nonce;
 
@@ -1013,11 +1066,13 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 _nft = IERC721(setParamsData.info.nft);
                 _consensusThreshold = setParamsData.info.threshold;
                 _slashCollectionAddr = setParamsData.info.collector;
+                _votingTopicExpiration = setParamsData.info.expiration;
 
                 emit ParamsChanged(
                     setParamsData.info.token,
                     setParamsData.info.nft,
                     setParamsData.info.threshold,
+                    setParamsData.info.expiration,
                     setParamsData.info.collector,
                     setParamsData.info.voted,
                     setParamsData.info.nonce
