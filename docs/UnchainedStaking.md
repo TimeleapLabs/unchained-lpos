@@ -107,7 +107,7 @@ function getConsensusThreshold() external view returns (uint256)
 ### getHasRequestedSetParams
 
 ```solidity
-function getHasRequestedSetParams(UnchainedStaking.EIP712SetParams key, address requester) external view returns (bool)
+function getHasRequestedSetParams(UnchainedStaking.EIP712SetParamsKey key, address requester) external view returns (bool)
 ```
 
 
@@ -118,7 +118,7 @@ function getHasRequestedSetParams(UnchainedStaking.EIP712SetParams key, address 
 
 | Name | Type | Description |
 |---|---|---|
-| key | UnchainedStaking.EIP712SetParams | undefined |
+| key | UnchainedStaking.EIP712SetParamsKey | undefined |
 | requester | address | undefined |
 
 #### Returns
@@ -170,7 +170,7 @@ function getParams() external view returns (struct UnchainedStaking.ParamsInfo)
 ### getSetParamsData
 
 ```solidity
-function getSetParamsData(UnchainedStaking.EIP712SetParams key) external view returns (struct UnchainedStaking.ParamsInfo)
+function getSetParamsData(UnchainedStaking.EIP712SetParamsKey key) external view returns (struct UnchainedStaking.ParamsInfo)
 ```
 
 
@@ -181,7 +181,7 @@ function getSetParamsData(UnchainedStaking.EIP712SetParams key) external view re
 
 | Name | Type | Description |
 |---|---|---|
-| key | UnchainedStaking.EIP712SetParams | undefined |
+| key | UnchainedStaking.EIP712SetParamsKey | undefined |
 
 #### Returns
 
@@ -210,6 +210,23 @@ function getSlashData(UnchainedStaking.EIP712SlashKey key) external view returns
 | Name | Type | Description |
 |---|---|---|
 | _0 | UnchainedStaking.SlashInfo | undefined |
+
+### getTotalVotingPower
+
+```solidity
+function getTotalVotingPower() external view returns (uint256)
+```
+
+
+
+*Returns the total voting power represented by the sum of all staked tokens. Voting power is used in governance decisions, including the slashing process, where it determines the weight of a participant&#39;s vote. This function provides the aggregate voting power at the current state.*
+
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | uint256 | The total voting power from all staked tokens. |
 
 ### increaseStake
 
@@ -495,23 +512,6 @@ function stakerToSigner(address staker) external view returns (address)
 | Name | Type | Description |
 |---|---|---|
 | _0 | address | The address of the signer set by the staker. |
-
-### totalVotingPower
-
-```solidity
-function totalVotingPower() external view returns (uint256)
-```
-
-
-
-*Returns the total voting power represented by the sum of all staked tokens. Voting power is used in governance decisions, including the slashing process, where it determines the weight of a participant&#39;s vote. This function provides the aggregate voting power at the current state.*
-
-
-#### Returns
-
-| Name | Type | Description |
-|---|---|---|
-| _0 | uint256 | The total voting power from all staked tokens. |
 
 ### transfer
 

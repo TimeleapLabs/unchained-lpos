@@ -355,7 +355,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                     eip712Transfer.from,
                     eip712Transfer.to,
                     eip712Transfer.amount,
-                    keccak256(abi.encode(eip712Transfer.nonces))
+                    keccak256(abi.encodePacked(eip712Transfer.nonces))
                 )
             );
     }
@@ -865,7 +865,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @return The address of the signer set by the staker.
      */
     function stakerToSigner(address staker) external view returns (address) {
-        return _signerToStaker[staker];
+        return _stakerToSigner[staker];
     }
 
     /**
@@ -890,10 +890,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
         for (uint i = 0; i < eip712Slashes.length; i++) {
             EIP712Slash memory eip712Slash = eip712Slashes[i];
-
-            if (_incidentTracker[eip712Slash.incident]) {
-                continue;
-            }
 
             EIP712SlashKey memory slashKey = EIP712SlashKey(
                 eip712Slash.accused,
@@ -936,9 +932,11 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 revert InvalidSignature(i);
             }
 
+            slashData.info.amount = eip712Slash.amount;
+            slashData.info.accused = eip712Slash.accused;
+            slashData.info.incident = eip712Slash.incident;
             slashData.info.voted += userStake.amount;
             slashData.accusers[eip712Slash.accuser] = true;
-            slashData.info.incident = eip712Slash.incident;
 
             emit Accused(
                 eip712Slash.accused,
@@ -947,6 +945,10 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 slashData.info.voted,
                 eip712Slash.incident
             );
+
+            if (_incidentTracker[eip712Slash.incident]) {
+                continue;
+            }
 
             if (slashData.info.voted >= threshold) {
                 _incidentTracker[eip712Slash.incident] = true;
@@ -1047,10 +1049,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         for (uint i = 0; i < eip712SetParams.length; i++) {
             EIP712SetParams memory eip712SetParam = eip712SetParams[i];
 
-            if (_setParamsTracker[eip712SetParam.nonce]) {
-                continue;
-            }
-
             EIP712SetParamsKey memory key = EIP712SetParamsKey(
                 eip712SetParam.token,
                 eip712SetParam.nft,
@@ -1107,6 +1105,10 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
             emit VotedForParams(eip712SetParam.requester, eip712SetParam.nonce);
 
+            if (_setParamsTracker[eip712SetParam.nonce]) {
+                continue;
+            }
+
             if (setParamsData.info.voted >= threshold) {
                 _setParamsTracker[eip712SetParam.nonce] = true;
 
@@ -1137,7 +1139,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @return ParamsInfo The detailed information of the requested set parameters operation.
      */
     function getSetParamsData(
-        EIP712SetParams memory key
+        EIP712SetParamsKey memory key
     ) external view returns (ParamsInfo memory) {
         bytes32 eipHash = hash(key);
         Params storage setParamsData = _setParams[eipHash];
@@ -1173,7 +1175,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @return A boolean indicating whether the address has already requested the set of parameters.
      */
     function getHasRequestedSetParams(
-        EIP712SetParams memory key,
+        EIP712SetParamsKey memory key,
         address requester
     ) external view returns (bool) {
         bytes32 eipHash = hash(key);
@@ -1188,7 +1190,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * the aggregate voting power at the current state.
      * @return The total voting power from all staked tokens.
      */
-    function totalVotingPower() external view returns (uint256) {
+    function getTotalVotingPower() external view returns (uint256) {
         return _totalVotingPower;
     }
 
