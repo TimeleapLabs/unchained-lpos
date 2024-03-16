@@ -10,8 +10,6 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 // TODO: Should there be a max voting power?
-// TODO: All voting trackers should be hash based
-// TODO: All voting matters should have an expiration date
 
 /**
  * @title UnchainedStaking
