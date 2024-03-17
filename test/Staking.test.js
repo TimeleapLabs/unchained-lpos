@@ -16,11 +16,13 @@ const EIP712_TYPES = {
   ],
   EIP712Transfer: [
     { name: "signer", type: "address" },
+    { name: "from", type: "address" },
     { name: "to", type: "address" },
     { name: "amount", type: "uint256" },
     { name: "nonces", type: "uint256[]" },
   ],
   EIP712TransferKey: [
+    { name: "from", type: "address" },
     { name: "to", type: "address" },
     { name: "amount", type: "uint256" },
     { name: "nonces", type: "uint256[]" },
@@ -371,6 +373,7 @@ describe("Staking", function () {
     const signatures = [];
 
     const transfer = {
+      from: stakingAddr,
       to: user1.address,
       amount: ethers.parseUnits("100"),
       nonces: [0],
@@ -423,6 +426,49 @@ describe("Staking", function () {
     expect(postTransfer).to.equal(preTransfer + ethers.parseUnits("100"));
   });
 
+  it("allows slashing a staker with transfer out", async function () {
+    for (const user of [user1, user2, user3, user4]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    // Sign EIP712 message for Transfer
+    const messages = [];
+    const signatures = [];
+
+    const transfer = {
+      from: user4.address,
+      to: user1.address,
+      amount: ethers.parseUnits("100"),
+      nonces: [0],
+    };
+
+    for (const user of [user1, user2, user3]) {
+      const message = {
+        signer: user.address,
+        ...transfer,
+      };
+
+      const signed = await signEip712(
+        user,
+        eip712domain,
+        { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
+        message
+      );
+
+      messages.push(message);
+      signatures.push(signed);
+    }
+
+    // Transfer the tokens
+    await staking.connect(owner).transferOut(messages, signatures);
+    const stake = await staking["stakeOf(address)"](user4.address);
+
+    expect(stake.amount).to.equal(ethers.parseUnits("400"));
+  });
+
   it("rejects transfering out with duplicated nonce", async function () {
     for (const user of [user1, user2, user3]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
@@ -439,6 +485,7 @@ describe("Staking", function () {
     const signatures = [];
 
     const transfer = {
+      from: stakingAddr,
       to: user1.address,
       amount: ethers.parseUnits("100"),
       nonces: [0, 1, 2],
@@ -469,6 +516,7 @@ describe("Staking", function () {
     const duplicateSignatures = [];
 
     const duplicateTransfer = {
+      from: stakingAddr,
       to: user1.address,
       amount: ethers.parseUnits("100"),
       nonces: [1],
@@ -576,6 +624,7 @@ describe("Staking", function () {
 
     const transfer = {
       signer: user1.address,
+      from: stakingAddr,
       to: user3.address,
       amount: amount,
       nonces: [0],

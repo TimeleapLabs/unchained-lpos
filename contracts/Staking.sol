@@ -48,6 +48,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     struct TransferInfo {
+        address from;
         address to;
         uint256 amount;
         uint256 voted;
@@ -77,12 +78,14 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
     struct EIP712Transfer {
         address signer;
+        address from;
         address to;
         uint256 amount;
         uint256[] nonces;
     }
 
     struct EIP712TransferKey {
+        address from;
         address to;
         uint256 amount;
         uint256[] nonces;
@@ -142,12 +145,12 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
     bytes32 constant EIP712_TRANSFER_TYPEHASH =
         keccak256(
-            "EIP712Transfer(address signer,address to,uint256 amount,uint256[] nonces)"
+            "EIP712Transfer(address signer,address from,address to,uint256 amount,uint256[] nonces)"
         );
 
     bytes32 constant EIP712_TRANSFER_KEY_TYPEHASH =
         keccak256(
-            "EIP712TransferKey(address to,uint256 amount,uint256[] nonces)"
+            "EIP712TransferKey(address from,address to,uint256 amount,uint256[] nonces)"
         );
 
     bytes32 constant EIP712_SET_SIGNER_TYPEHASH =
@@ -324,6 +327,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 abi.encode(
                     EIP712_TRANSFER_TYPEHASH,
                     eip712Transfer.signer,
+                    eip712Transfer.from,
                     eip712Transfer.to,
                     eip712Transfer.amount,
                     keccak256(abi.encodePacked(eip712Transfer.nonces))
@@ -343,6 +347,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             keccak256(
                 abi.encode(
                     EIP712_TRANSFER_TYPEHASH,
+                    key.from,
                     key.to,
                     key.amount,
                     keccak256(abi.encodePacked(key.nonces))
@@ -784,6 +789,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             EIP712Transfer memory eip712Transfer = eip712Transferes[i];
 
             EIP712TransferKey memory transferKey = EIP712TransferKey(
+                eip712Transfer.from,
                 eip712Transfer.to,
                 eip712Transfer.amount,
                 eip712Transfer.nonces
@@ -826,6 +832,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             }
 
             transferData.info.amount = eip712Transfer.amount;
+            transferData.info.from = eip712Transfer.from;
             transferData.info.to = eip712Transfer.to;
             transferData.info.nonces = eip712Transfer.nonces;
             transferData.info.voted += userStake.amount;
@@ -836,7 +843,15 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
             if (transferData.info.voted >= threshold) {
                 burnTransferNonces(i, eip712Transfer.to, eip712Transfer.nonces);
-                _transferredIn -= eip712Transfer.amount;
+
+                if (eip712Transfer.from == address(this)) {
+                    _transferredIn -= eip712Transfer.amount;
+                } else {
+                    _totalVotingPower -= eip712Transfer.amount;
+                    _stakes[eip712Transfer.from].amount -= eip712Transfer
+                        .amount;
+                }
+
                 transferData.info.accepted = true;
 
                 _token.safeTransfer(
