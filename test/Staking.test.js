@@ -657,4 +657,16 @@ describe("Staking", function () {
     const user1Stake = await staking["stakeOf(bytes20)"](user1bls);
     expect(user1Stake.amount).to.equal(ethers.parseUnits("500"));
   });
+
+  it("reverts if the NFT is not the expected one", async function () {
+    await expect(
+      staking.onERC721Received(user1.address, user2.address, 123, "0x")
+    ).to.be.revertedWithCustomError(staking, "WrongNFT()");
+  });
+
+  it("reverts if accepting NFT is forbidden", async function () {
+    await expect(
+      nft.connect(user1).safeTransferFrom(user1.address, stakingAddr, 1)
+    ).to.be.revertedWithCustomError(staking, "Forbidden()");
+  });
 });
