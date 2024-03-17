@@ -2,9 +2,9 @@
 
 
 
-> UnchainedStaking
+> Unchained Staking
 
-This contract allows users to stake ERC20 tokens and ERC721 NFTs, offering functionalities to stake, unstake, extend stakes, and manage slashing in case of misbehavior. It implements an EIP-712 domain for secure off-chain signature verifications, enabling decentralized governance actions like voting or slashing without on-chain transactions for each vote. The contract includes a slashing mechanism where staked tokens can be slashed (removed from the stake) if the majority of voting power agrees on a misbehavior. Users can stake tokens and NFTs either as consumers or not, affecting their roles within the ecosystem, particularly in governance or voting processes.
+This contract allows users to stake ERC20 tokens and ERC721 NFTs, offering functionalities to stake, unstake, extend stakes, and manage transfering in case of misbehavior. It implements an EIP-712 domain for secure off-chain signature verifications, enabling decentralized governance actions like voting or transfering without on-chain transactions for each vote. The contract includes a transfering mechanism where staked tokens can be transfered (removed from the stake) if the majority of voting power agrees on a misbehavior.
 
 
 
@@ -95,19 +95,36 @@ function getConsensusThreshold() external view returns (uint256)
 
 
 
-*Returns the current threshold for slashing to occur. This represents the minimum percentage of total voting power that must agree on a slash for it to be executed.*
+*Returns the current threshold for transfering to occur. This represents the minimum percentage of total voting power that must agree on a transfer for it to be executed.*
 
 
 #### Returns
 
 | Name | Type | Description |
 |---|---|---|
-| _0 | uint256 | The slashing threshold as a percentage of total voting power. |
+| _0 | uint256 | The transfering threshold as a percentage of total voting power. |
 
-### getHasRequestedSetParams
+### getParams
 
 ```solidity
-function getHasRequestedSetParams(UnchainedStaking.EIP712SetParamsKey key, address requester) external view returns (bool)
+function getParams() external view returns (struct UnchainedStaking.ParamsInfo)
+```
+
+
+
+*Retrieves the current contract parameters, including the token and NFT addresses, the consensus threshold, and the voting topic expiration. This function returns the current state of the contract&#39;s parameters.*
+
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | UnchainedStaking.ParamsInfo | ParamsInfo A struct containing the current contract parameters. |
+
+### getRequestedSetParams
+
+```solidity
+function getRequestedSetParams(UnchainedStaking.EIP712SetParamsKey key, address requester) external view returns (bool)
 ```
 
 
@@ -127,10 +144,10 @@ function getHasRequestedSetParams(UnchainedStaking.EIP712SetParamsKey key, addre
 |---|---|---|
 | _0 | bool | undefined |
 
-### getHasSlashed
+### getRequestedTransferOut
 
 ```solidity
-function getHasSlashed(UnchainedStaking.EIP712SlashKey key, address slasher) external view returns (bool)
+function getRequestedTransferOut(UnchainedStaking.EIP712TransferKey key, address transferer) external view returns (bool)
 ```
 
 
@@ -141,31 +158,14 @@ function getHasSlashed(UnchainedStaking.EIP712SlashKey key, address slasher) ext
 
 | Name | Type | Description |
 |---|---|---|
-| key | UnchainedStaking.EIP712SlashKey | undefined |
-| slasher | address | undefined |
+| key | UnchainedStaking.EIP712TransferKey | undefined |
+| transferer | address | undefined |
 
 #### Returns
 
 | Name | Type | Description |
 |---|---|---|
 | _0 | bool | undefined |
-
-### getParams
-
-```solidity
-function getParams() external view returns (struct UnchainedStaking.ParamsInfo)
-```
-
-
-
-*Retrieves the current contract parameters, including the token and NFT addresses, the consensus threshold, the voting topic expiration, and the collector address for slash penalties. This function returns the current state of the contract&#39;s parameters.*
-
-
-#### Returns
-
-| Name | Type | Description |
-|---|---|---|
-| _0 | UnchainedStaking.ParamsInfo | ParamsInfo A struct containing the current contract parameters. |
 
 ### getSetParamsData
 
@@ -189,10 +189,27 @@ function getSetParamsData(UnchainedStaking.EIP712SetParamsKey key) external view
 |---|---|---|
 | _0 | UnchainedStaking.ParamsInfo | undefined |
 
-### getSlashData
+### getTotalVotingPower
 
 ```solidity
-function getSlashData(UnchainedStaking.EIP712SlashKey key) external view returns (struct UnchainedStaking.SlashInfo)
+function getTotalVotingPower() external view returns (uint256)
+```
+
+
+
+*Returns the total voting power represented by the sum of all staked tokens. Voting power is used in governance decisions, including the transfering process, where it determines the weight of a participant&#39;s vote. This function provides the aggregate voting power at the current state.*
+
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | uint256 | The total voting power from all staked tokens. |
+
+### getTransferOutData
+
+```solidity
+function getTransferOutData(UnchainedStaking.EIP712TransferKey key) external view returns (struct UnchainedStaking.TransferInfo)
 ```
 
 
@@ -203,30 +220,30 @@ function getSlashData(UnchainedStaking.EIP712SlashKey key) external view returns
 
 | Name | Type | Description |
 |---|---|---|
-| key | UnchainedStaking.EIP712SlashKey | undefined |
+| key | UnchainedStaking.EIP712TransferKey | undefined |
 
 #### Returns
 
 | Name | Type | Description |
 |---|---|---|
-| _0 | UnchainedStaking.SlashInfo | undefined |
+| _0 | UnchainedStaking.TransferInfo | undefined |
 
-### getTotalVotingPower
+### getTransferredIn
 
 ```solidity
-function getTotalVotingPower() external view returns (uint256)
+function getTransferredIn() external view returns (uint256)
 ```
 
 
 
-*Returns the total voting power represented by the sum of all staked tokens. Voting power is used in governance decisions, including the slashing process, where it determines the weight of a participant&#39;s vote. This function provides the aggregate voting power at the current state.*
+*Retrieves the total amount of tokens transferred to the Unchained Network.*
 
 
 #### Returns
 
 | Name | Type | Description |
 |---|---|---|
-| _0 | uint256 | The total voting power from all staked tokens. |
+| _0 | uint256 | The total amount of tokens transferred to the Unchained Network. |
 
 ### increaseStake
 
@@ -244,28 +261,6 @@ function increaseStake(uint256 amount, uint256[] nftIds) external nonpayable
 |---|---|---|
 | amount | uint256 | The additional amount of tokens to add to the existing stake. |
 | nftIds | uint256[] | An array of additional NFT IDs to add to the stake. |
-
-### isConsumer
-
-```solidity
-function isConsumer(address addr) external view returns (bool)
-```
-
-
-
-*Checks if the stake associated with a given address is marked as consumer.*
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| addr | address | The address to check the consumer flag for. |
-
-#### Returns
-
-| Name | Type | Description |
-|---|---|---|
-| _0 | bool | True if the stake is marked as consumer, false otherwise. |
 
 ### onERC721Received
 
@@ -411,32 +406,15 @@ function signerToStaker(address signer) external view returns (address)
 |---|---|---|
 | _0 | address | The address of the staker who set the signer. |
 
-### slash
-
-```solidity
-function slash(UnchainedStaking.EIP712Slash[] eip712Slashes, UnchainedStaking.Signature[] signatures) external nonpayable
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| eip712Slashes | UnchainedStaking.EIP712Slash[] | undefined |
-| signatures | UnchainedStaking.Signature[] | undefined |
-
 ### stake
 
 ```solidity
-function stake(uint256 duration, uint256 amount, uint256[] nftIds, bool consumer) external nonpayable
+function stake(uint256 duration, uint256 amount, uint256[] nftIds) external nonpayable
 ```
 
 
 
-*Called by a user to stake their tokens along with NFTs if desired, specifying whether the stake is for a consumer.*
+*Called by a user to stake their tokens along with NFTs if desired.*
 
 #### Parameters
 
@@ -445,7 +423,6 @@ function stake(uint256 duration, uint256 amount, uint256[] nftIds, bool consumer
 | duration | uint256 | The duration for which the tokens and NFTs are staked. |
 | amount | uint256 | The amount of tokens to stake. |
 | nftIds | uint256[] | An array of NFT IDs to stake along with the tokens. |
-| consumer | bool | A boolean indicating whether the stake is for a consumer or not. |
 
 ### stakeOf
 
@@ -513,10 +490,26 @@ function stakerToSigner(address staker) external view returns (address)
 |---|---|---|
 | _0 | address | The address of the signer set by the staker. |
 
-### transfer
+### transferIn
 
 ```solidity
-function transfer(UnchainedStaking.EIP712Transfer[] eip712Transfers, UnchainedStaking.Signature[] signatures) external nonpayable
+function transferIn(uint256 amount) external nonpayable
+```
+
+Allows transfering tokens to the Unchained Network.
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| amount | uint256 | The amount of tokens to transfer to the Unchained Network. |
+
+### transferOut
+
+```solidity
+function transferOut(UnchainedStaking.EIP712Transfer[] eip712Transferes, UnchainedStaking.Signature[] signatures) external nonpayable
 ```
 
 
@@ -527,7 +520,7 @@ function transfer(UnchainedStaking.EIP712Transfer[] eip712Transfers, UnchainedSt
 
 | Name | Type | Description |
 |---|---|---|
-| eip712Transfers | UnchainedStaking.EIP712Transfer[] | undefined |
+| eip712Transferes | UnchainedStaking.EIP712Transfer[] | undefined |
 | signatures | UnchainedStaking.Signature[] | undefined |
 
 ### transferOwnership
@@ -683,7 +676,7 @@ event OwnershipTransferred(address indexed previousOwner, address indexed newOwn
 ### ParamsChanged
 
 ```solidity
-event ParamsChanged(address token, address nft, uint256 threshold, uint256 expiration, address collector, uint256 voted, uint256 nonce)
+event ParamsChanged(address token, address nft, uint256 threshold, uint256 expiration, uint256 voted, uint256 nonce)
 ```
 
 
@@ -698,7 +691,6 @@ event ParamsChanged(address token, address nft, uint256 threshold, uint256 expir
 | nft  | address | undefined |
 | threshold  | uint256 | undefined |
 | expiration  | uint256 | undefined |
-| collector  | address | undefined |
 | voted  | uint256 | undefined |
 | nonce  | uint256 | undefined |
 
@@ -718,25 +710,6 @@ event SignerChanged(address staker, address signer)
 |---|---|---|
 | staker  | address | undefined |
 | signer  | address | undefined |
-
-### Slashed
-
-```solidity
-event Slashed(address slashed, bytes32 incident, uint256 amount, uint256 voted)
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| slashed  | address | undefined |
-| incident  | bytes32 | undefined |
-| amount  | uint256 | undefined |
-| voted  | uint256 | undefined |
 
 ### StakeIncreased
 
@@ -759,7 +732,7 @@ event StakeIncreased(address user, uint256 amount, uint256[] nftIds)
 ### Staked
 
 ```solidity
-event Staked(address user, uint256 unlock, uint256 amount, uint256[] nftIds, bool consumer)
+event Staked(address user, uint256 unlock, uint256 amount, uint256[] nftIds)
 ```
 
 
@@ -774,7 +747,41 @@ event Staked(address user, uint256 unlock, uint256 amount, uint256[] nftIds, boo
 | unlock  | uint256 | undefined |
 | amount  | uint256 | undefined |
 | nftIds  | uint256[] | undefined |
-| consumer  | bool | undefined |
+
+### TransferIn
+
+```solidity
+event TransferIn(address from, uint256 amount)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| from  | address | undefined |
+| amount  | uint256 | undefined |
+
+### TransferOut
+
+```solidity
+event TransferOut(address to, uint256 amount, uint256[] nonces)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| to  | address | undefined |
+| amount  | uint256 | undefined |
+| nonces  | uint256[] | undefined |
 
 ### UnStaked
 

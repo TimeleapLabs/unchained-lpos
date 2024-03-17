@@ -12,17 +12,15 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 // TODO: Should there be a max voting power?
 
 /**
- * @title UnchainedStaking
+ * @title Unchained Staking
  * @notice This contract allows users to stake ERC20 tokens and ERC721 NFTs,
  * offering functionalities to stake, unstake, extend stakes, and manage
- * slashing in case of misbehavior. It implements an EIP-712 domain for secure
+ * transfering in case of misbehavior. It implements an EIP-712 domain for secure
  * off-chain signature verifications, enabling decentralized governance
- * actions like voting or slashing without on-chain transactions for each vote.
- * The contract includes a slashing mechanism where staked tokens can be
- * slashed (removed from the stake) if the majority of voting power agrees on a
- * misbehavior. Users can stake tokens and NFTs either as consumers or not,
- * affecting their roles within the ecosystem, particularly in governance or
- * voting processes.
+ * actions like voting or transfering without on-chain transactions for each vote.
+ * The contract includes a transfering mechanism where staked tokens can be
+ * transfered (removed from the stake) if the majority of voting power agrees on a
+ * misbehavior.
  */
 contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -47,20 +45,19 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         uint256 amount;
         uint256 unlock;
         uint256[] nftIds;
-        bool consumer;
     }
 
-    struct SlashInfo {
-        address accused;
+    struct TransferInfo {
+        address to;
         uint256 amount;
         uint256 voted;
-        bool slashed;
-        bytes32 incident;
+        bool accepted;
+        uint256[] nonces;
     }
 
-    struct Slash {
-        SlashInfo info;
-        mapping(address => bool) accusers;
+    struct Transfer {
+        TransferInfo info;
+        mapping(address => bool) signers;
     }
 
     struct ParamsInfo {
@@ -68,7 +65,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         address nft;
         uint256 threshold;
         uint256 expiration;
-        address collector;
         uint256 voted;
         uint256 nonce;
         bool accepted;
@@ -80,23 +76,16 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     struct EIP712Transfer {
-        address from;
+        address signer;
         address to;
         uint256 amount;
         uint256[] nonces;
     }
 
-    struct EIP712Slash {
-        address accused;
-        address accuser;
+    struct EIP712TransferKey {
+        address to;
         uint256 amount;
-        bytes32 incident;
-    }
-
-    struct EIP712SlashKey {
-        address accused;
-        uint256 amount;
-        bytes32 incident;
+        uint256[] nonces;
     }
 
     struct EIP712SetParams {
@@ -105,7 +94,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         address nft;
         uint256 threshold;
         uint256 expiration;
-        address collector;
         uint256 nonce;
     }
 
@@ -114,7 +102,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         address nft;
         uint256 threshold;
         uint256 expiration;
-        address collector;
         uint256 nonce;
     }
 
@@ -155,17 +142,12 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
     bytes32 constant EIP712_TRANSFER_TYPEHASH =
         keccak256(
-            "EIP712Transfer(address from,address to,uint256 amount,uint256[] nonces)"
+            "EIP712Transfer(address signer,address to,uint256 amount,uint256[] nonces)"
         );
 
-    bytes32 constant EIP712_SLASH_TYPEHASH =
+    bytes32 constant EIP712_TRANSFER_KEY_TYPEHASH =
         keccak256(
-            "EIP712Slash(address accused,address accuser,uint256 amount,bytes32 incident)"
-        );
-
-    bytes32 constant EIP712_SLASH_KEY_TYPEHASH =
-        keccak256(
-            "EIP712Slash(address accused,address accuser,uint256 amount,bytes32 incident)"
+            "EIP712TransferKey(address to,uint256 amount,uint256[] nonces)"
         );
 
     bytes32 constant EIP712_SET_SIGNER_TYPEHASH =
@@ -173,23 +155,22 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
     bytes32 constant EIP712_SET_PARAMS_TYPEHASH =
         keccak256(
-            "EIP712SetParams(address requester,address token,address nft,uint256 threshold,uint256 expiration,address collector,uint256 nonce)"
+            "EIP712SetParams(address requester,address token,address nft,uint256 threshold,uint256 expiration,uint256 nonce)"
         );
 
     bytes32 constant EIP712_SET_PARAMS_KEY_TYPEHASH =
         keccak256(
-            "EIP712SetParams(address token,address nft,uint256 threshold,uint256 expiration,address collector,uint256 nonce)"
+            "EIP712SetParams(address token,address nft,uint256 threshold,uint256 expiration,uint256 nonce)"
         );
 
+    uint256 private _transferredIn;
     uint256 private _consensusLock;
     uint256 private _consensusThreshold = 51;
     uint256 private _votingTopicExpiration = 1 days;
     uint256 private _totalVotingPower;
-    address private _slashCollectionAddr;
 
     mapping(address => Stake) private _stakes;
-    mapping(bytes32 => Slash) private _slashes;
-    mapping(bytes32 => bool) private _incidentTracker;
+    mapping(bytes32 => Transfer) private _transfers;
 
     mapping(bytes20 => address) private _blsToAddress;
     mapping(address => bytes20) private _addressToBls;
@@ -216,8 +197,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         address user,
         uint256 unlock,
         uint256 amount,
-        uint256[] nftIds,
-        bool consumer
+        uint256[] nftIds
     );
 
     event UnStaked(address user, uint256 amount, uint256[] nftIds);
@@ -225,20 +205,14 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     event StakeIncreased(address user, uint256 amount, uint256[] nftIds);
     event BlsAddressChanged(address user, bytes32 from, bytes32 to);
     event SignerChanged(address staker, address signer);
-
-    event Slashed(
-        address slashed,
-        bytes32 incident,
-        uint256 amount,
-        uint256 voted
-    );
+    event TransferOut(address to, uint256 amount, uint256[] nonces);
+    event TransferIn(address from, uint256 amount);
 
     event ParamsChanged(
         address token,
         address nft,
         uint256 threshold,
         uint256 expiration,
-        address collector,
         uint256 voted,
         uint256 nonce
     );
@@ -263,7 +237,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @param tokenAddress Address of the stake token.
      * @param nftAddress Address of the nft.
      * @param consensusLock Lock consensus votes until this block is reached.
-     * @param slashCollectionAddr Address to collect slash penalties.
      * @param name Name of the EIP712 Domain.
      * @param version Version of the EIP712 Domain.
      */
@@ -271,14 +244,12 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         address tokenAddress,
         address nftAddress,
         uint256 consensusLock,
-        address slashCollectionAddr,
         string memory name,
         string memory version
     ) Ownable(msg.sender) {
         _token = IERC20(tokenAddress);
         _nft = IERC721(nftAddress);
         _consensusLock = consensusLock;
-        _slashCollectionAddr = slashCollectionAddr;
         DOMAIN_SEPARATOR = hash(
             EIP712Domain({
                 name: name,
@@ -352,7 +323,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             keccak256(
                 abi.encode(
                     EIP712_TRANSFER_TYPEHASH,
-                    eip712Transfer.from,
+                    eip712Transfer.signer,
                     eip712Transfer.to,
                     eip712Transfer.amount,
                     keccak256(abi.encodePacked(eip712Transfer.nonces))
@@ -361,40 +332,20 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     /**
-     * @dev Hashes an EIP712Slash struct to its EIP712 representation.
-     * @param eip712Slash The EIP712Slash struct containing slash details.
-     * @return The EIP712 hash of the slash.
+     * @dev Hashes an EIP712TransferKey struct to its EIP712 representation.
+     * @param key The EIP712TransferKey struct containing the transfer details.
+     * @return The EIP712 hash of the transfer.
      */
     function hash(
-        EIP712Slash memory eip712Slash
+        EIP712TransferKey memory key
     ) internal pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(
-                    EIP712_SLASH_TYPEHASH,
-                    eip712Slash.accused,
-                    eip712Slash.accuser,
-                    eip712Slash.amount,
-                    eip712Slash.incident
-                )
-            );
-    }
-
-    /**
-     * @dev Hashes an EIP712SlashKey struct to its EIP712 representation.
-     * @param eip712SlashKey The EIP712SlashKey struct containing slash key details.
-     * @return The EIP712 hash of the slash key.
-     */
-    function hash(
-        EIP712SlashKey memory eip712SlashKey
-    ) internal pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    EIP712_SLASH_KEY_TYPEHASH,
-                    eip712SlashKey.accused,
-                    eip712SlashKey.amount,
-                    eip712SlashKey.incident
+                    EIP712_TRANSFER_TYPEHASH,
+                    key.to,
+                    key.amount,
+                    keccak256(abi.encodePacked(key.nonces))
                 )
             );
     }
@@ -420,15 +371,12 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     /**
-     * @dev Computes the EIP-712 compliant hash of a set of parameters intended for a specific operation.
-     * This operation could involve setting new contract parameters such as token address, NFT address,
-     * a threshold value, a collector address, and a nonce for operation uniqueness. The hash is created
-     * following the EIP-712 standard, which allows for securely signed data to be verified by the contract.
-     * This function is internal and pure, meaning it doesn't alter or read the contract's state.
+     * @dev Hashes an EIP712SetParams struct into its EIP712 compliant representation.
+     * This is used for securely signing and verifying operations off-chain, ensuring
+     * data integrity and signer authenticity for the `setParams` function.
      * @param eip712SetParams The struct containing the parameters to be hashed. This includes token and
-     * NFT addresses, a threshold value for certain operations, a collector address that may receive funds
-     * or penalties, and a nonce to ensure the hash's uniqueness.
-     * @return The EIP-712 compliant hash of the provided parameters, which can be used to verify signatures
+     * NFT addresses, a threshold value for certain operations, and a nonce to ensure the hash's uniqueness.
+     * @return The EIP712 hash of the provided parameters, which can be used to verify signatures
      * or as a key in mappings.
      */
     function hash(
@@ -443,7 +391,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                     eip712SetParams.nft,
                     eip712SetParams.threshold,
                     eip712SetParams.expiration,
-                    eip712SetParams.collector,
                     eip712SetParams.nonce
                 )
             );
@@ -452,12 +399,11 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     /**
      * @dev Computes the EIP-712 compliant hash of a set of parameters intended for a specific operation.
      * This operation could involve setting new contract parameters such as token address, NFT address,
-     * a threshold value, a collector address, and a nonce for operation uniqueness. The hash is created
+     * a threshold value, and a nonce for operation uniqueness. The hash is created
      * following the EIP-712 standard, which allows for securely signed data to be verified by the contract.
      * This function is internal and pure, meaning it doesn't alter or read the contract's state.
      * @param eip712SetParamsKey The struct containing the parameters to be hashed. This includes token and
-     * NFT addresses, a threshold value for certain operations, a collector address that may receive funds
-     * or penalties, and a nonce to ensure the hash's uniqueness.
+     * NFT addresses, a threshold value for certain operations, and a nonce to ensure the hash's uniqueness.
      * @return The EIP-712 compliant hash of the provided parameters, which can be used to verify signatures
      * or as a key in mappings.
      */
@@ -472,24 +418,39 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                     eip712SetParamsKey.nft,
                     eip712SetParamsKey.threshold,
                     eip712SetParamsKey.expiration,
-                    eip712SetParamsKey.collector,
                     eip712SetParamsKey.nonce
                 )
             );
     }
 
     /**
-     * @dev Called by a user to stake their tokens along with NFTs if desired, specifying whether the stake is for a consumer.
+     * Allows transfering tokens to the Unchained Network.
+     * @param amount The amount of tokens to transfer to the Unchained Network.
+     */
+    function transferIn(uint256 amount) external {
+        _token.safeTransferFrom(_msgSender(), address(this), amount);
+        _transferredIn += amount;
+        emit TransferIn(_msgSender(), amount);
+    }
+
+    /**
+     * @dev Retrieves the total amount of tokens transferred to the Unchained Network.
+     * @return The total amount of tokens transferred to the Unchained Network.
+     */
+    function getTransferredIn() external view returns (uint256) {
+        return _transferredIn;
+    }
+
+    /**
+     * @dev Called by a user to stake their tokens along with NFTs if desired.
      * @param duration The duration for which the tokens and NFTs are staked.
      * @param amount The amount of tokens to stake.
      * @param nftIds An array of NFT IDs to stake along with the tokens.
-     * @param consumer A boolean indicating whether the stake is for a consumer or not.
      */
     function stake(
         uint256 duration,
         uint256 amount,
-        uint256[] memory nftIds,
-        bool consumer
+        uint256[] memory nftIds
     ) external nonReentrant nftReceiver {
         if (amount == 0 && nftIds.length == 0) {
             revert AmountZero();
@@ -513,7 +474,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             _token.safeTransferFrom(_msgSender(), address(this), amount);
         }
 
-        _stakes[_msgSender()].consumer = consumer;
         _stakes[_msgSender()].unlock = block.timestamp + duration;
 
         for (uint256 i = 0; i < nftIds.length; i++) {
@@ -521,13 +481,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             _nft.safeTransferFrom(_msgSender(), address(this), nftIds[i], "");
         }
 
-        emit Staked(
-            _msgSender(),
-            _stakes[_msgSender()].unlock,
-            amount,
-            nftIds,
-            consumer
-        );
+        emit Staked(_msgSender(), _stakes[_msgSender()].unlock, amount, nftIds);
     }
 
     /**
@@ -660,19 +614,10 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     /**
-     * @dev Checks if the stake associated with a given address is marked as consumer.
-     * @param addr The address to check the consumer flag for.
-     * @return True if the stake is marked as consumer, false otherwise.
-     */
-    function isConsumer(address addr) public view returns (bool) {
-        return _stakes[addr].consumer;
-    }
-
-    /**
-     * @dev Verifies the authenticity of a transaction using EIP-712 typed data signing.
-     * @param eip712Transfer The EIP712Transfer structure containing the transaction details.
-     * @param signature The signature to verify the transaction.
-     * @return True if the signature is valid and matches the transaction details, false otherwise.
+     * @dev Verifies the authenticity of a transfer request using EIP-712 typed data signing.
+     * @param eip712Transfer The EIP712Transfer structure containing the transfer request details.
+     * @param signature The signature to verify the transfer request.
+     * @return True if the signature is valid and matches the transfer request details, false otherwise.
      */
     function verify(
         EIP712Transfer memory eip712Transfer,
@@ -689,40 +634,15 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             signature.s
         );
         return
-            eip712Transfer.from == signer ||
-            eip712Transfer.from == signerToStaker(signer);
+            eip712Transfer.signer == signer ||
+            eip712Transfer.signer == signerToStaker(signer);
     }
 
     /**
-     * @dev Verifies the authenticity of a slash request using EIP-712 typed data signing.
-     * @param eip712Slash The EIP712Slash structure containing the slash request details.
-     * @param signature The signature to verify the slash request.
-     * @return True if the signature is valid and matches the slash request details, false otherwise.
-     */
-    function verify(
-        EIP712Slash memory eip712Slash,
-        Signature memory signature
-    ) public view returns (bool) {
-        // Note: we need to use `encodePacked` here instead of `encode`.
-        bytes32 digest = keccak256(
-            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hash(eip712Slash))
-        );
-        address signer = ECDSA.recover(
-            digest,
-            signature.v,
-            signature.r,
-            signature.s
-        );
-        return
-            eip712Slash.accuser == signer ||
-            eip712Slash.accuser == signerToStaker(signer);
-    }
-
-    /**
-     * @dev Verifies the authenticity of a slash request using EIP-712 typed data signing.
-     * @param eip712SetParam The EIP712Slash structure containing the slash request details.
-     * @param signature The signature to verify the slash request.
-     * @return True if the signature is valid and matches the slash request details, false otherwise.
+     * @dev Verifies the authenticity of a transfer request using EIP-712 typed data signing.
+     * @param eip712SetParam The EIP712Transfer structure containing the transfer request details.
+     * @param signature The signature to verify the transfer request.
+     * @return True if the signature is valid and matches the transfer request details, false otherwise.
      */
     function verify(
         EIP712SetParams memory eip712SetParam,
@@ -783,47 +703,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     /**
-     * @dev Transfers a batch of ERC20 tokens according to the specified ERC20Transfers and validates each transfer with a corresponding signature.
-     * @param eip712Transfers An array of EIP712Transfer structures specifying the transfer details.
-     * @param signatures An array of signatures corresponding to each EIP712Transfer to validate the transfers.
-     */
-    function transfer(
-        EIP712Transfer[] memory eip712Transfers,
-        Signature[] memory signatures
-    ) external nonReentrant {
-        if (eip712Transfers.length != signatures.length) {
-            revert LengthMismatch();
-        }
-
-        for (uint i = 0; i < eip712Transfers.length; i++) {
-            EIP712Transfer memory eip712Transfer = eip712Transfers[i];
-
-            for (uint n = 0; n < eip712Transfer.nonces.length; n++) {
-                if (_nonces[eip712Transfer.from][eip712Transfer.nonces[n]]) {
-                    revert NonceUsed(i, eip712Transfer.nonces[n]);
-                }
-
-                _nonces[eip712Transfer.from][eip712Transfer.nonces[n]] = true;
-            }
-
-            if (!_stakes[eip712Transfer.from].consumer) {
-                revert NotConsumer(i);
-            }
-
-            Signature memory signature = signatures[i];
-            bool valid = verify(eip712Transfer, signature);
-
-            if (!valid) {
-                revert InvalidSignature(i);
-            }
-
-            _stakes[eip712Transfer.from].amount -= eip712Transfer.amount;
-            _totalVotingPower -= eip712Transfer.amount;
-            _token.safeTransfer(eip712Transfer.to, eip712Transfer.amount);
-        }
-    }
-
-    /**
      * @dev Allows a staker to securely designate another address as their signer
      * for signing operations, using EIP-712 signatures for verification. This can
      * delegate signing authority while retaining control over staked assets.
@@ -868,36 +747,49 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         return _stakerToSigner[staker];
     }
 
+    function burnTransferNonces(
+        uint256 index,
+        address to,
+        uint256[] memory nonces
+    ) internal onlyOwner {
+        for (uint256 n = 0; n < nonces.length; n++) {
+            if (_nonces[to][nonces[n]]) {
+                revert NonceUsed(index, nonces[n]);
+            }
+            _nonces[to][nonces[n]] = true;
+        }
+    }
+
     /**
-     * @dev Processes a batch of slash requests against stakers for misbehaviour, validated by signatures.
-     * Each slash request decreases the stake of the accused if the collective voting power of accusers exceeds a threshold.
-     * @param eip712Slashes An array of EIP712Slash structures containing details of each slash request.
-     * @param signatures An array of signatures corresponding to each slash request for validation.
+     * @dev Processes a batch of transfer requests against stakers for misbehaviour, validated by signatures.
+     * Each transfer request decreases the stake of the accused if the collective voting power of accusers exceeds a threshold.
+     * @param eip712Transferes An array of EIP712Transfer structures containing details of each transfer request.
+     * @param signatures An array of signatures corresponding to each transfer request for validation.
      */
-    function slash(
-        EIP712Slash[] memory eip712Slashes,
+    function transferOut(
+        EIP712Transfer[] memory eip712Transferes,
         Signature[] memory signatures
     ) external nonReentrant {
         if (block.number <= _consensusLock) {
             revert Forbidden();
         }
 
-        if (eip712Slashes.length != signatures.length) {
+        if (eip712Transferes.length != signatures.length) {
             revert LengthMismatch();
         }
 
         uint256 threshold = (_totalVotingPower * _consensusThreshold) / 100;
 
-        for (uint i = 0; i < eip712Slashes.length; i++) {
-            EIP712Slash memory eip712Slash = eip712Slashes[i];
+        for (uint i = 0; i < eip712Transferes.length; i++) {
+            EIP712Transfer memory eip712Transfer = eip712Transferes[i];
 
-            EIP712SlashKey memory slashKey = EIP712SlashKey(
-                eip712Slash.accused,
-                eip712Slash.amount,
-                eip712Slash.incident
+            EIP712TransferKey memory transferKey = EIP712TransferKey(
+                eip712Transfer.to,
+                eip712Transfer.amount,
+                eip712Transfer.nonces
             );
 
-            bytes32 eipHash = hash(slashKey);
+            bytes32 eipHash = hash(transferKey);
 
             if (_firstReported[eipHash] == 0) {
                 _firstReported[eipHash] = block.timestamp;
@@ -909,7 +801,14 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 revert TopicExpired(i);
             }
 
-            Stake memory userStake = _stakes[eip712Slash.accuser];
+            Transfer storage transferData = _transfers[eipHash];
+
+            if (transferData.signers[eip712Transfer.signer]) {
+                continue;
+            }
+
+            transferData.signers[eip712Transfer.signer] = true;
+            Stake memory userStake = _stakes[eip712Transfer.signer];
 
             if (userStake.amount == 0) {
                 revert VotingPowerZero(i);
@@ -919,101 +818,78 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 revert StakeExpiresBeforeVote(i);
             }
 
-            Slash storage slashData = _slashes[eipHash];
-
-            if (slashData.accusers[eip712Slash.accuser]) {
-                revert AlreadyAccused(i);
-            }
-
             Signature memory signature = signatures[i];
-            bool valid = verify(eip712Slash, signature);
+            bool valid = verify(eip712Transfer, signature);
 
             if (!valid) {
                 revert InvalidSignature(i);
             }
 
-            slashData.info.amount = eip712Slash.amount;
-            slashData.info.accused = eip712Slash.accused;
-            slashData.info.incident = eip712Slash.incident;
-            slashData.info.voted += userStake.amount;
-            slashData.accusers[eip712Slash.accuser] = true;
+            transferData.info.amount = eip712Transfer.amount;
+            transferData.info.to = eip712Transfer.to;
+            transferData.info.nonces = eip712Transfer.nonces;
+            transferData.info.voted += userStake.amount;
 
-            emit Accused(
-                eip712Slash.accused,
-                eip712Slash.accuser,
-                eip712Slash.amount,
-                slashData.info.voted,
-                eip712Slash.incident
-            );
-
-            if (_incidentTracker[eip712Slash.incident]) {
+            if (transferData.info.accepted) {
                 continue;
             }
 
-            if (slashData.info.voted >= threshold) {
-                _incidentTracker[eip712Slash.incident] = true;
-                slashData.info.slashed = true;
-
-                _stakes[eip712Slash.accused].amount -= slashData.info.amount;
-                _totalVotingPower -= slashData.info.amount;
+            if (transferData.info.voted >= threshold) {
+                burnTransferNonces(i, eip712Transfer.to, eip712Transfer.nonces);
+                _transferredIn -= eip712Transfer.amount;
+                transferData.info.accepted = true;
 
                 _token.safeTransfer(
-                    _slashCollectionAddr,
-                    slashData.info.amount
+                    transferData.info.to,
+                    transferData.info.amount
                 );
 
-                emit Slashed(
-                    slashData.info.accused,
-                    slashData.info.incident,
-                    slashData.info.amount,
-                    slashData.info.voted
+                emit TransferOut(
+                    transferData.info.to,
+                    transferData.info.amount,
+                    transferData.info.nonces
                 );
             }
         }
     }
 
     /**
-     * @dev Retrieves detailed information about a specific slash incident identified
-     * by a unique EIP712SlashKey. This function computes the hash of the key to look up
-     * the slash incident and returns its associated data.
-     * @param key The EIP712SlashKey struct containing the details needed to identify
-     * the slash incident.
-     * @return SlashInfo A struct containing detailed information about the slash incident.
+     * @dev Retrieves the current status of a specific transfer incident identified by a unique
+     * EIP712TransferKey. This function computes the hash of the key to look up the transfer incident
+     * and returns the TransferInfo struct containing the details of the transfer incident.
+     * @param key The EIP712TransferKey struct containing the details needed to identify the transfer incident.
+     * @return The TransferInfo struct containing the details of the transfer incident.
      */
-    function getSlashData(
-        EIP712SlashKey memory key
-    ) external view returns (SlashInfo memory) {
+    function getTransferOutData(
+        EIP712TransferKey memory key
+    ) external view returns (TransferInfo memory) {
         bytes32 eipHash = hash(key);
-        Slash storage slashData = _slashes[eipHash];
-        return slashData.info;
+        Transfer storage transferData = _transfers[eipHash];
+        return transferData.info;
     }
 
     /**
-     * @dev Checks whether a given address has participated as an accuser in a
-     * specific slash incident. This is determined by looking up the slash incident
-     * using the hash of the provided EIP712SlashKey and checking if the slasher's
-     * address is marked as an accuser.
-     * @param key The EIP712SlashKey struct containing the details needed to identify
-     * the slash incident.
-     * @param slasher The address of the potential accuser to check for participation
-     * in the slash incident.
-     * @return A boolean indicating whether the specified address has accused in the
-     * slash incident.
+     * @dev Retrieves the current status of a specific transfer incident identified by a unique
+     * EIP712TransferKey. This function computes the hash of the key to look up the transfer incident
+     * and returns a boolean indicating whether the transfer has been signed by a specific address.
+     * @param key The EIP712TransferKey struct containing the details needed to identify the transfer incident.
+     * @param transferer The address to check for a signature on the transfer incident.
+     * @return True if the transfer incident has been signed by the specified address, false otherwise.
      */
-    function getHasSlashed(
-        EIP712SlashKey memory key,
-        address slasher
+    function getRequestedTransferOut(
+        EIP712TransferKey memory key,
+        address transferer
     ) external view returns (bool) {
         bytes32 eipHash = hash(key);
-        Slash storage slashData = _slashes[eipHash];
-        return slashData.accusers[slasher];
+        Transfer storage transferData = _transfers[eipHash];
+        return transferData.signers[transferer];
     }
 
     /**
-     * @dev Returns the current threshold for slashing to occur. This
+     * @dev Returns the current threshold for transfering to occur. This
      * represents the minimum percentage of total voting power that must agree
-     * on a slash for it to be executed.
-     * @return The slashing threshold as a percentage of total voting power.
+     * on a transfer for it to be executed.
+     * @return The transfering threshold as a percentage of total voting power.
      */
     function getConsensusThreshold() external view returns (uint256) {
         return _consensusThreshold;
@@ -1054,7 +930,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 eip712SetParam.nft,
                 eip712SetParam.threshold,
                 eip712SetParam.expiration,
-                eip712SetParam.collector,
                 eip712SetParam.nonce
             );
 
@@ -1100,7 +975,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             setParamsData.info.nft = eip712SetParam.nft;
             setParamsData.info.threshold = eip712SetParam.threshold;
             setParamsData.info.expiration = eip712SetParam.expiration;
-            setParamsData.info.collector = eip712SetParam.collector;
             setParamsData.info.nonce = eip712SetParam.nonce;
 
             emit VotedForParams(eip712SetParam.requester, eip712SetParam.nonce);
@@ -1115,7 +989,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 _token = IERC20(setParamsData.info.token);
                 _nft = IERC721(setParamsData.info.nft);
                 _consensusThreshold = setParamsData.info.threshold;
-                _slashCollectionAddr = setParamsData.info.collector;
                 _votingTopicExpiration = setParamsData.info.expiration;
 
                 emit ParamsChanged(
@@ -1123,7 +996,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                     setParamsData.info.nft,
                     setParamsData.info.threshold,
                     setParamsData.info.expiration,
-                    setParamsData.info.collector,
                     setParamsData.info.voted,
                     setParamsData.info.nonce
                 );
@@ -1134,7 +1006,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     /**
      * @dev Retrieves the detailed information about a set of parameters identified by a hash
      * of the EIP712SetParams struct. This can include the token, NFT addresses, threshold,
-     * collector address, and the nonce used for the request.
+     * and the nonce used for the request.
      * @param key The EIP712SetParams struct containing details to identify the parameters.
      * @return ParamsInfo The detailed information of the requested set parameters operation.
      */
@@ -1148,8 +1020,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
     /**
      * @dev Retrieves the current contract parameters, including the token and NFT addresses,
-     * the consensus threshold, the voting topic expiration, and the collector address for
-     * slash penalties. This function returns the current state of the contract's parameters.
+     * the consensus threshold, and the voting topic expiration. This function returns the current
+     * state of the contract's parameters.
      * @return ParamsInfo A struct containing the current contract parameters.
      */
     function getParams() external view returns (ParamsInfo memory) {
@@ -1159,7 +1031,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 address(_nft),
                 _consensusThreshold,
                 _votingTopicExpiration,
-                _slashCollectionAddr,
                 0,
                 0,
                 true
@@ -1174,7 +1045,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @param requester The address of the potential requester to check.
      * @return A boolean indicating whether the address has already requested the set of parameters.
      */
-    function getHasRequestedSetParams(
+    function getRequestedSetParams(
         EIP712SetParamsKey memory key,
         address requester
     ) external view returns (bool) {
@@ -1185,7 +1056,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
     /**
      * @dev Returns the total voting power represented by the sum of all staked tokens.
-     * Voting power is used in governance decisions, including the slashing process,
+     * Voting power is used in governance decisions, including the transfering process,
      * where it determines the weight of a participant's vote. This function provides
      * the aggregate voting power at the current state.
      * @return The total voting power from all staked tokens.
