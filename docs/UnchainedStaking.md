@@ -189,6 +189,50 @@ function getSetParamsData(UnchainedStaking.EIP712SetParamsKey key) external view
 |---|---|---|
 | _0 | UnchainedStaking.ParamsInfo | undefined |
 
+### getStake
+
+```solidity
+function getStake(address evm) external view returns (struct UnchainedStaking.Stake)
+```
+
+
+
+*Retrieves the stake information associated with a given EVM address.*
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| evm | address | The EVM address to query the stake information. |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | UnchainedStaking.Stake | The stake information associated with the given EVM address. |
+
+### getStake
+
+```solidity
+function getStake(bytes20 bls) external view returns (struct UnchainedStaking.Stake)
+```
+
+
+
+*Retrieves the stake information associated with a given BLS address.*
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| bls | bytes20 | The BLS address to query the stake information. |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | UnchainedStaking.Stake | The stake information associated with the given BLS address. |
+
 ### getTotalVotingPower
 
 ```solidity
@@ -228,22 +272,49 @@ function getTransferOutData(UnchainedStaking.EIP712TransferKey key) external vie
 |---|---|---|
 | _0 | UnchainedStaking.TransferInfo | undefined |
 
-### getTransferredIn
+### getVotingPower
 
 ```solidity
-function getTransferredIn() external view returns (uint256)
+function getVotingPower(bytes20 bls) external view returns (uint256)
 ```
 
 
 
-*Retrieves the total amount of tokens transferred to the Unchained Network.*
+*Returns the current voting power for a user.*
 
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| bls | bytes20 | undefined |
 
 #### Returns
 
 | Name | Type | Description |
 |---|---|---|
-| _0 | uint256 | The total amount of tokens transferred to the Unchained Network. |
+| _0 | uint256 | The voting power of the user. |
+
+### getVotingPower
+
+```solidity
+function getVotingPower(address evm) external view returns (uint256)
+```
+
+
+
+*Returns the current voting power for a user.*
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| evm | address | undefined |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | uint256 | The voting power of the user. |
 
 ### increaseStake
 
@@ -423,50 +494,6 @@ function stake(uint256 duration, uint256 amount, uint256[] nftIds) external nonp
 | duration | uint256 | The duration for which the tokens and NFTs are staked. |
 | amount | uint256 | The amount of tokens to stake. |
 | nftIds | uint256[] | An array of NFT IDs to stake along with the tokens. |
-
-### stakeOf
-
-```solidity
-function stakeOf(address evm) external view returns (struct UnchainedStaking.Stake)
-```
-
-
-
-*Retrieves the stake information associated with a given EVM address.*
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| evm | address | The EVM address to query the stake information. |
-
-#### Returns
-
-| Name | Type | Description |
-|---|---|---|
-| _0 | UnchainedStaking.Stake | The stake information associated with the given EVM address. |
-
-### stakeOf
-
-```solidity
-function stakeOf(bytes20 bls) external view returns (struct UnchainedStaking.Stake)
-```
-
-
-
-*Retrieves the stake information associated with a given BLS address.*
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| bls | bytes20 | The BLS address to query the stake information. |
-
-#### Returns
-
-| Name | Type | Description |
-|---|---|---|
-| _0 | UnchainedStaking.Stake | The stake information associated with the given BLS address. |
 
 ### stakerToSigner
 
@@ -676,7 +703,7 @@ event OwnershipTransferred(address indexed previousOwner, address indexed newOwn
 ### ParamsChanged
 
 ```solidity
-event ParamsChanged(address token, address nft, uint256 threshold, uint256 expiration, uint256 voted, uint256 nonce)
+event ParamsChanged(address token, address nft, address nftTracker, uint256 threshold, uint256 expiration, uint256 voted, uint256 nonce)
 ```
 
 
@@ -689,6 +716,7 @@ event ParamsChanged(address token, address nft, uint256 threshold, uint256 expir
 |---|---|---|
 | token  | address | undefined |
 | nft  | address | undefined |
+| nftTracker  | address | undefined |
 | threshold  | uint256 | undefined |
 | expiration  | uint256 | undefined |
 | voted  | uint256 | undefined |
@@ -768,7 +796,7 @@ event TransferIn(address from, uint256 amount)
 ### TransferOut
 
 ```solidity
-event TransferOut(address to, uint256 amount, uint256[] nonces)
+event TransferOut(address to, uint256 amount, uint256[] nftIds, uint256[] nonces)
 ```
 
 
@@ -781,6 +809,7 @@ event TransferOut(address to, uint256 amount, uint256[] nonces)
 |---|---|---|
 | to  | address | undefined |
 | amount  | uint256 | undefined |
+| nftIds  | uint256[] | undefined |
 | nonces  | uint256[] | undefined |
 
 ### UnStaked
