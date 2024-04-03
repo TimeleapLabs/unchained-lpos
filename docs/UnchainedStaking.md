@@ -104,6 +104,28 @@ function getConsensusThreshold() external view returns (uint256)
 |---|---|---|
 | _0 | uint256 | The transfering threshold as a percentage of total voting power. |
 
+### getNftPrice
+
+```solidity
+function getNftPrice(uint256 nftId) external view returns (uint256)
+```
+
+
+
+*Retrieves the current NFT price for a specific NFT ID. This function returns the current price of the NFT as set by the NFT tracker contract.*
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| nftId | uint256 | The ID of the NFT to query the price for. |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | uint256 | The current price of the NFT. |
+
 ### getParams
 
 ```solidity
@@ -120,6 +142,29 @@ function getParams() external view returns (struct UnchainedStaking.ParamsInfo)
 | Name | Type | Description |
 |---|---|---|
 | _0 | UnchainedStaking.ParamsInfo | ParamsInfo A struct containing the current contract parameters. |
+
+### getRequestedSetNftPrice
+
+```solidity
+function getRequestedSetNftPrice(UnchainedStaking.EIP712SetNftPriceKey key, address requester) external view returns (bool)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| key | UnchainedStaking.EIP712SetNftPriceKey | undefined |
+| requester | address | undefined |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | bool | undefined |
 
 ### getRequestedSetParams
 
@@ -166,6 +211,28 @@ function getRequestedTransferOut(UnchainedStaking.EIP712TransferKey key, address
 | Name | Type | Description |
 |---|---|---|
 | _0 | bool | undefined |
+
+### getSetNftPriceData
+
+```solidity
+function getSetNftPriceData(UnchainedStaking.EIP712SetNftPriceKey key) external view returns (struct UnchainedStaking.NftPriceInfo)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| key | UnchainedStaking.EIP712SetNftPriceKey | undefined |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | UnchainedStaking.NftPriceInfo | undefined |
 
 ### getSetParamsData
 
@@ -419,6 +486,23 @@ function setBlsAddress(bytes20 blsAddress) external nonpayable
 | Name | Type | Description |
 |---|---|---|
 | blsAddress | bytes20 | The new BLS address to be set for the user. |
+
+### setNftPrices
+
+```solidity
+function setNftPrices(UnchainedStaking.EIP712SetNftPrice[] eip712SetNftPrices, UnchainedStaking.Signature[] signatures) external nonpayable
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| eip712SetNftPrices | UnchainedStaking.EIP712SetNftPrice[] | undefined |
+| signatures | UnchainedStaking.Signature[] | undefined |
 
 ### setParams
 

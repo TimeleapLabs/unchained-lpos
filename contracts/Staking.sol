@@ -83,6 +83,18 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         mapping(address => bool) requesters;
     }
 
+    struct NftPriceInfo {
+        uint256 nftId;
+        uint256 price;
+        uint256 voted;
+        bool accepted;
+    }
+
+    struct NftPrice {
+        NftPriceInfo info;
+        mapping(address => bool) requesters;
+    }
+
     struct EIP712Transfer {
         address signer;
         address from;
@@ -118,6 +130,19 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         address nftTracker;
         uint256 threshold;
         uint256 expiration;
+        uint256 nonce;
+    }
+
+    struct EIP712SetNftPrice {
+        address requester;
+        uint256 nftId;
+        uint256 price;
+        uint256 nonce;
+    }
+
+    struct EIP712SetNftPriceKey {
+        uint256 nftId;
+        uint256 price;
         uint256 nonce;
     }
 
@@ -180,6 +205,16 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             "EIP712SetParamsKey(address token,address nft,address nftTracker,uint256 threshold,uint256 expiration,uint256 nonce)"
         );
 
+    bytes32 constant EIP712_SET_NFT_PRICE_TYPEHASH =
+        keccak256(
+            "EIP712SetNftPrice(address requester,uint256 nftId,uint256 price,uint256 nonce)"
+        );
+
+    bytes32 constant EIP712_SET_NFT_PRICE_KEY_TYPEHASH =
+        keccak256(
+            "EIP712SetNftPriceKey(uint256 nftId,uint256 price,uint256 nonce)"
+        );
+
     uint256 private _consensusLock;
     uint256 private _consensusThreshold = 51;
     uint256 private _votingTopicExpiration = 1 days;
@@ -195,8 +230,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     mapping(address => address) private _signerToStaker;
     mapping(address => address) private _stakerToSigner;
 
-    mapping(uint256 => bool) private _setParamsTracker;
     mapping(bytes32 => Params) private _setParams;
+    mapping(bytes32 => NftPrice) private _setNftPrice;
 
     mapping(bytes32 => uint256) private _firstReported;
 
@@ -458,6 +493,54 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     /**
+     * @dev Hashes an EIP712SetNftPrice struct into its EIP712 compliant representation.
+     * This is used for securely signing and verifying operations off-chain, ensuring
+     * data integrity and signer authenticity for the `setNftPrice` function.
+     * @param eip712SetNftPrice The struct containing the parameters to be hashed. This includes the NFT ID,
+     * the new price to set, and a nonce to ensure the hash's uniqueness.
+     * @return The EIP712 hash of the set NFT price operation.
+     */
+    function hash(
+        EIP712SetNftPrice memory eip712SetNftPrice
+    ) internal pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    EIP712_SET_NFT_PRICE_TYPEHASH,
+                    eip712SetNftPrice.requester,
+                    eip712SetNftPrice.nftId,
+                    eip712SetNftPrice.price,
+                    eip712SetNftPrice.nonce
+                )
+            );
+    }
+
+    /**
+     * @dev Computes the EIP-712 compliant hash of a set of parameters intended for a specific operation.
+     * This operation could involve setting a new price for an NFT, which is a governance action that requires
+     * secure off-chain signing. The hash is created following the EIP-712 standard, which allows for securely
+     * signed data to be verified by the contract. This function is internal and pure, meaning it doesn't alter
+     * or read the contract's state.
+     * @param eip712SetNftPriceKey The struct containing the parameters to be hashed. This includes the NFT ID,
+     * the new price to set, and a nonce to ensure the hash's uniqueness.
+     * @return The EIP-712 compliant hash of the provided parameters, which can be used to verify signatures
+     * or as a key in mappings.
+     */
+    function hash(
+        EIP712SetNftPriceKey memory eip712SetNftPriceKey
+    ) internal pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    EIP712_SET_NFT_PRICE_KEY_TYPEHASH,
+                    eip712SetNftPriceKey.nftId,
+                    eip712SetNftPriceKey.price,
+                    eip712SetNftPriceKey.nonce
+                )
+            );
+    }
+
+    /**
      * Allows transfering tokens to the Unchained Network.
      * @param amount The amount of tokens to transfer to the Unchained Network.
      */
@@ -691,6 +774,35 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         return
             eip712SetParam.requester == signer ||
             eip712SetParam.requester == signerToStaker(signer);
+    }
+
+    /**
+     * @dev Verifies the authenticity of a transfer request using EIP-712 typed data signing.
+     * @param eip712SetNftPrice The EIP712Transfer structure containing the transfer request details.
+     * @param signature The signature to verify the transfer request.
+     * @return True if the signature is valid and matches the transfer request details, false otherwise.
+     */
+    function verify(
+        EIP712SetNftPrice memory eip712SetNftPrice,
+        Signature memory signature
+    ) public view returns (bool) {
+        // Note: we need to use `encodePacked` here instead of `encode`.
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                hash(eip712SetNftPrice)
+            )
+        );
+        address signer = ECDSA.recover(
+            digest,
+            signature.v,
+            signature.r,
+            signature.s
+        );
+        return
+            eip712SetNftPrice.requester == signer ||
+            eip712SetNftPrice.requester == signerToStaker(signer);
     }
 
     /**
@@ -1107,12 +1219,12 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
             emit VotedForParams(eip712SetParam.requester, eip712SetParam.nonce);
 
-            if (_setParamsTracker[eip712SetParam.nonce]) {
+            if (setParamsData.info.accepted) {
                 continue;
             }
 
             if (setParamsData.info.voted >= threshold) {
-                _setParamsTracker[eip712SetParam.nonce] = true;
+                setParamsData.info.accepted = true;
 
                 _token = IERC20(setParamsData.info.token);
                 _nft = IERC721(setParamsData.info.nft);
@@ -1183,6 +1295,140 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         bytes32 eipHash = hash(key);
         Params storage setParamsData = _setParams[eipHash];
         return setParamsData.requesters[requester];
+    }
+
+    /**
+     * @dev Allows a batch update of NFT prices through a consensus mechanism. This function
+     * requires a matching signature for each set of prices to validate each requester's intent.
+     * It enforces a consensus threshold based on the total voting power and prevents execution
+     * before a specified block number (_consensusLock) for security.
+     * @param eip712SetNftPrices An array of EIP712SetNftPrice structs, each containing a proposed
+     * set of NFT price updates.
+     * @param signatures An array of signatures corresponding to each set of prices, used to
+     * verify the authenticity of the requests.
+     * @notice Reverts if called before the consensus lock period ends, if the length of prices
+     * and signatures arrays do not match, if any signature is invalid, or if the voting power
+     * threshold for consensus is not met.
+     */
+    function setNftPrices(
+        EIP712SetNftPrice[] memory eip712SetNftPrices,
+        Signature[] memory signatures
+    ) external {
+        if (block.number <= _consensusLock) {
+            revert Forbidden();
+        }
+
+        if (eip712SetNftPrices.length != signatures.length) {
+            revert LengthMismatch();
+        }
+
+        uint256 threshold = (_totalVotingPower * _consensusThreshold) / 100;
+
+        for (uint i = 0; i < eip712SetNftPrices.length; i++) {
+            EIP712SetNftPrice memory eip712SetNftPrice = eip712SetNftPrices[i];
+
+            EIP712SetNftPriceKey memory key = EIP712SetNftPriceKey(
+                eip712SetNftPrice.nftId,
+                eip712SetNftPrice.price,
+                eip712SetNftPrice.nonce
+            );
+
+            bytes32 eipHash = hash(key);
+
+            if (_firstReported[eipHash] == 0) {
+                _firstReported[eipHash] = block.timestamp;
+            }
+
+            uint256 expires = _firstReported[eipHash] + _votingTopicExpiration;
+
+            if (block.timestamp > expires) {
+                revert TopicExpired(i);
+            }
+
+            Stake memory userStake = _stakes[eip712SetNftPrice.requester];
+
+            if (userStake.amount == 0) {
+                revert VotingPowerZero(i);
+            }
+
+            if (userStake.unlock <= expires) {
+                revert StakeExpiresBeforeVote(i);
+            }
+
+            NftPrice storage nftPriceData = _setNftPrice[eipHash];
+
+            if (nftPriceData.requesters[eip712SetNftPrice.requester]) {
+                revert AlreadyVoted(i);
+            }
+
+            Signature memory signature = signatures[i];
+            bool valid = verify(eip712SetNftPrice, signature);
+
+            if (!valid) {
+                revert InvalidSignature(i);
+            }
+
+            nftPriceData.requesters[eip712SetNftPrice.requester] = true;
+
+            nftPriceData.info.nftId = eip712SetNftPrice.nftId;
+            nftPriceData.info.price = eip712SetNftPrice.price;
+            nftPriceData.info.voted += updateGetVotingPower(userStake);
+
+            if (nftPriceData.info.accepted) {
+                continue;
+            }
+
+            if (nftPriceData.info.voted >= threshold) {
+                nftPriceData.info.accepted = true;
+                _cachedNftPrices[eip712SetNftPrice.nftId] = eip712SetNftPrice
+                    .price;
+                _nftTracker.setPrice(
+                    eip712SetNftPrice.nftId,
+                    eip712SetNftPrice.price
+                );
+            }
+        }
+    }
+
+    /**
+     * @dev Retrieves the detailed information about a set of NFT prices identified by a hash
+     * of the EIP712SetNftPrice struct. This can include the NFT ID and the new price to set.
+     * @param key The EIP712SetNftPrice struct containing details to identify the NFT price update.
+     * @return NftPriceInfo The detailed information of the requested NFT price update operation.
+     */
+    function getSetNftPriceData(
+        EIP712SetNftPriceKey memory key
+    ) external view returns (NftPriceInfo memory) {
+        bytes32 eipHash = hash(key);
+        NftPrice storage nftPriceData = _setNftPrice[eipHash];
+        return nftPriceData.info;
+    }
+
+    /**
+     * @dev Retrieves the current NFT price for a specific NFT ID. This function returns the
+     * current price of the NFT as set by the NFT tracker contract.
+     * @param nftId The ID of the NFT to query the price for.
+     * @return The current price of the NFT.
+     */
+    function getNftPrice(uint256 nftId) external view returns (uint256) {
+        return _nftTracker.getPrice(nftId);
+    }
+
+    /**
+     * @dev Checks if a specific address has already requested a set of NFT prices. This
+     * is useful for verifying participation in the consensus process for a price update.
+     * @param key The EIP712SetNftPrice struct containing the details to identify the NFT price
+     * update request.
+     * @param requester The address of the potential requester to check.
+     * @return A boolean indicating whether the address has already requested the set of NFT prices.
+     */
+    function getRequestedSetNftPrice(
+        EIP712SetNftPriceKey memory key,
+        address requester
+    ) external view returns (bool) {
+        bytes32 eipHash = hash(key);
+        NftPrice storage nftPriceData = _setNftPrice[eipHash];
+        return nftPriceData.requesters[requester];
     }
 
     /**

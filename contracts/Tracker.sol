@@ -34,4 +34,6 @@ contract NFTTracker is Ownable {
 
 interface INFTTracker {
     function getPrice(uint256 nftId) external view returns (uint256);
+
+    function setPrice(uint256 nftId, uint256 price) external;
 }
