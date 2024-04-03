@@ -74,12 +74,17 @@ describe("Staking", function () {
     // Mint NFTs
     await nft.mint(0, 100);
 
+    //Deploy Mock NFT tracker
+    const NFTTracker = await ethers.getContractFactory("NFTTracker");
+    nftTracker = await NFTTracker.deploy();
+
     tokenAddr = await token.getAddress();
     nftAddr = await nft.getAddress();
+    nftTrackerAddr = await nftTracker.getAddress();
 
     // Deploy the Staking contract
     const Staking = await ethers.getContractFactory("UnchainedStaking");
-    staking = await Staking.deploy(tokenAddr, nftAddr, 10, "Unchained", "1");
+    staking = await Staking.deploy(tokenAddr, nftAddr, nftTrackerAddr, 10, "Unchained", "1");
 
     stakingAddr = await staking.getAddress();
 
@@ -156,11 +161,11 @@ describe("Staking", function () {
     await staking
       .connect(user1)
       .stake(60 * 60 * 24, ethers.parseUnits("500"), [1]);
-    const preExtendStake = await staking["stakeOf(address)"](user1.address);
+    const preExtendStake = await staking["getStake(address)"](user1.address);
 
     // Increase stake duration
     await staking.connect(user1).extend(60 * 60 * 24 * 7);
-    const postExtendStake = await staking["stakeOf(address)"](user1.address);
+    const postExtendStake = await staking["getStake(address)"](user1.address);
 
     expect(postExtendStake.unlock).to.equal(
       preExtendStake.unlock + 60n * 60n * 24n * 7n
