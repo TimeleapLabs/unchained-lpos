@@ -19,13 +19,17 @@ const EIP712_TYPES = {
     { name: "from", type: "address" },
     { name: "to", type: "address" },
     { name: "amount", type: "uint256" },
+    { name: "nftIds", type: "uint256[]" },
     { name: "nonces", type: "uint256[]" },
+    { name: "fromStake", type: "bool" },
   ],
   EIP712TransferKey: [
     { name: "from", type: "address" },
     { name: "to", type: "address" },
     { name: "amount", type: "uint256" },
+    { name: "nftIds", type: "uint256[]" },
     { name: "nonces", type: "uint256[]" },
+    { name: "fromStake", type: "bool" },
   ],
   EIP712SetParams: [
     { name: "requester", type: "address" },
@@ -46,7 +50,19 @@ const EIP712_TYPES = {
     { name: "staker", type: "address" },
     { name: "signer", type: "address" },
   ],
+  EIP712SetNftPrice: [
+    { name: "requester", type: "address" },
+    { name: "nftId", type: "uint256" },
+    { name: "price", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+  ],
+  EIP712SetNftPriceKey: [
+    { name: "nftId", type: "uint256" },
+    { name: "price", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+  ],
 };
+
 
 const signEip712 = async (signer, domain, types, message) => {
   const signature = await signer.signTypedData(domain, types, message);
@@ -234,7 +250,7 @@ describe("Staking", function () {
 
     // Increase stake
     await staking.connect(user1).increaseStake(ethers.parseUnits("500"), [2]);
-    const postIncreaseStake = await staking["stakeOf(address)"](user1.address);
+    const postIncreaseStake = await staking["getStake(address)"](user1.address);
 
     expect(postIncreaseStake.amount).to.equal(ethers.parseUnits("1000"));
     expect(postIncreaseStake.nftIds.length).to.equal(2);
@@ -256,10 +272,12 @@ describe("Staking", function () {
     const params = {
       token: tokenAddr,
       nft: nftAddr,
+      nftTracker: nftTrackerAddr,
       threshold: 60,
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
       nonce: 0,
+      fromStake: false,
     };
 
     for (const user of [user1, user2, user3]) {
@@ -354,13 +372,6 @@ describe("Staking", function () {
     ).to.be.revertedWithCustomError(staking, "AlreadyVoted(uint256)");
   });
 
-  it("reports the correct transfer in data", async function () {
-    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("500"));
-    await staking.connect(user1).transferIn(ethers.parseUnits("500"));
-
-    const amount = await staking.getTransferredIn();
-    expect(amount).to.equal(ethers.parseUnits("500"));
-  });
 
   it("allows transfering in and out of the Unchained Network", async function () {
     for (const user of [user1, user2, user3]) {
@@ -380,8 +391,10 @@ describe("Staking", function () {
     const transfer = {
       from: stakingAddr,
       to: user1.address,
+      nftIds: [],
       amount: ethers.parseUnits("100"),
       nonces: [0],
+      fromStake: false
     };
 
     for (const user of [user1, user2, user3]) {
@@ -446,8 +459,10 @@ describe("Staking", function () {
     const transfer = {
       from: user4.address,
       to: user1.address,
+      nftIds: [],
       amount: ethers.parseUnits("100"),
       nonces: [0],
+      fromStake: false,
     };
 
     for (const user of [user1, user2, user3]) {
@@ -469,7 +484,7 @@ describe("Staking", function () {
 
     // Transfer the tokens
     await staking.connect(owner).transferOut(messages, signatures);
-    const stake = await staking["stakeOf(address)"](user4.address);
+    const stake = await staking["getStake(address)"](user4.address);
 
     expect(stake.amount).to.equal(ethers.parseUnits("400"));
   });
@@ -492,8 +507,10 @@ describe("Staking", function () {
     const transfer = {
       from: stakingAddr,
       to: user1.address,
+      nftIds: [],
       amount: ethers.parseUnits("100"),
       nonces: [0, 1, 2],
+      fromStake: false,
     };
 
     for (const user of [user1, user2, user3]) {
@@ -523,8 +540,10 @@ describe("Staking", function () {
     const duplicateTransfer = {
       from: stakingAddr,
       to: user1.address,
+      nftIds: [],
       amount: ethers.parseUnits("100"),
       nonces: [1],
+      fromStake: false,
     };
 
     for (const user of [user1, user2, user3]) {
@@ -631,8 +650,10 @@ describe("Staking", function () {
       signer: user1.address,
       from: stakingAddr,
       to: user3.address,
+      nftIds: [],
       amount: amount,
       nonces: [0],
+      fromStake: false,
     };
 
     const signed = await signEip712(
@@ -659,7 +680,7 @@ describe("Staking", function () {
       .connect(user1)
       .stake(60 * 60 * 24, ethers.parseUnits("500"), []);
 
-    const user1Stake = await staking["stakeOf(bytes20)"](user1bls);
+    const user1Stake = await staking["getStake(bytes20)"](user1bls);
     expect(user1Stake.amount).to.equal(ethers.parseUnits("500"));
   });
 
