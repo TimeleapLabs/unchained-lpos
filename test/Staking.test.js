@@ -21,7 +21,6 @@ const EIP712_TYPES = {
     { name: "amount", type: "uint256" },
     { name: "nftIds", type: "uint256[]" },
     { name: "nonces", type: "uint256[]" },
-    { name: "fromStake", type: "bool" },
   ],
   EIP712TransferKey: [
     { name: "from", type: "address" },
@@ -29,7 +28,6 @@ const EIP712_TYPES = {
     { name: "amount", type: "uint256" },
     { name: "nftIds", type: "uint256[]" },
     { name: "nonces", type: "uint256[]" },
-    { name: "fromStake", type: "bool" },
   ],
   EIP712SetParams: [
     { name: "requester", type: "address" },
@@ -286,7 +284,6 @@ describe("Staking", function () {
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
       nonce: 0,
-      fromStake: false,
     };
 
     for (const user of [user1, user2, user3]) {
@@ -384,7 +381,6 @@ describe("Staking", function () {
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
       nonce: 0,
-      fromStake: false,
     };
 
     const signers = [
@@ -495,19 +491,18 @@ describe("Staking", function () {
     }
 
     await token.connect(user4).approve(stakingAddr, ethers.parseUnits("500"));
-    await staking.connect(user4).transferIn(ethers.parseUnits("500"));
+    await staking.connect(user4).stake(3600, ethers.parseUnits("500"), []);
 
     // Sign EIP712 message for Transfer
     const messages = [];
     const signatures = [];
 
     const transfer = {
-      from: stakingAddr,
+      from: user4.address,
       to: user1.address,
       nftIds: [],
       amount: ethers.parseUnits("100"),
       nonces: [0],
-      fromStake: false,
     };
 
     for (const user of [user1, user2, user3]) {
@@ -529,7 +524,7 @@ describe("Staking", function () {
 
     // Transfer the tokens
     const preTransfer = await token.balanceOf(user1.address);
-    await staking.connect(owner).transferOut(messages, signatures);
+    await staking.connect(owner).transfer(messages, signatures);
 
     // Transfer data should be available
     const slashData = await staking.getTransferOutData(transfer);
@@ -575,7 +570,6 @@ describe("Staking", function () {
       nftIds: [],
       amount: ethers.parseUnits("100"),
       nonces: [0],
-      fromStake: false,
     };
 
     for (const user of [user1, user2, user3]) {
@@ -596,7 +590,7 @@ describe("Staking", function () {
     }
 
     // Transfer the tokens
-    await staking.connect(owner).transferOut(messages, signatures);
+    await staking.connect(owner).transfer(messages, signatures);
     const stake = await staking["getStake(address)"](user4.address);
 
     expect(stake.amount).to.equal(ethers.parseUnits("400"));
@@ -611,19 +605,18 @@ describe("Staking", function () {
     }
 
     await token.connect(user4).approve(stakingAddr, ethers.parseUnits("500"));
-    await staking.connect(user4).transferIn(ethers.parseUnits("500"));
+    await staking.connect(user4).stake(3600, ethers.parseUnits("500"), []);
 
     // Sign EIP712 message for Transfer
     const messages = [];
     const signatures = [];
 
     const transfer = {
-      from: stakingAddr,
+      from: user4.address,
       to: user1.address,
       nftIds: [],
       amount: ethers.parseUnits("100"),
       nonces: [0, 1, 2],
-      fromStake: false,
     };
 
     for (const user of [user1, user2, user3]) {
@@ -644,7 +637,7 @@ describe("Staking", function () {
     }
 
     // Transfer the tokens
-    await staking.connect(owner).transferOut(messages, signatures);
+    await staking.connect(owner).transfer(messages, signatures);
 
     // Sign EIP712 message for Transfer
     const duplicateMessages = [];
@@ -656,7 +649,6 @@ describe("Staking", function () {
       nftIds: [],
       amount: ethers.parseUnits("100"),
       nonces: [1],
-      fromStake: false,
     };
 
     for (const user of [user1, user2, user3]) {
@@ -678,7 +670,7 @@ describe("Staking", function () {
 
     // Transfer the tokens
     expect(
-      staking.connect(owner).transferOut(duplicateMessages, duplicateSignatures)
+      staking.connect(owner).transfer(duplicateMessages, duplicateSignatures)
     ).to.be.revertedWithCustomError(staking, "NonceUsed(uint256,uint256)");
   });
 
