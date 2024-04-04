@@ -57,7 +57,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         uint256 amount;
         uint256[] nftIds;
         uint256 voted;
-        bool fromStake;
         bool accepted;
         uint256[] nonces;
     }
@@ -102,7 +101,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         uint256 amount;
         uint256[] nftIds;
         uint256[] nonces;
-        bool fromStake;
     }
 
     struct EIP712TransferKey {
@@ -111,7 +109,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         uint256 amount;
         uint256[] nftIds;
         uint256[] nonces;
-        bool fromStake;
     }
 
     struct EIP712SetParams {
@@ -184,12 +181,12 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
 
     bytes32 constant EIP712_TRANSFER_TYPEHASH =
         keccak256(
-            "EIP712Transfer(address signer,address from,address to,uint256 amount,uint256[] nftIds,uint256[] nonces,bool fromStake)"
+            "EIP712Transfer(address signer,address from,address to,uint256 amount,uint256[] nftIds,uint256[] nonces)"
         );
 
     bytes32 constant EIP712_TRANSFER_KEY_TYPEHASH =
         keccak256(
-            "EIP712TransferKey(address from,address to,uint256 amount,uint256[] nonces,bool fromStake)"
+            "EIP712TransferKey(address from,address to,uint256 amount,uint256[] nonces)"
         );
 
     bytes32 constant EIP712_SET_SIGNER_TYPEHASH =
@@ -220,7 +217,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     uint256 private _votingTopicExpiration = 1 days;
     uint256 private _totalVotingPower;
 
-    mapping(address => uint256) private _balances;
     mapping(address => Stake) private _stakes;
     mapping(bytes32 => Transfer) private _transfers;
 
@@ -389,8 +385,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                     eip712Transfer.to,
                     eip712Transfer.amount,
                     keccak256(abi.encodePacked(eip712Transfer.nftIds)),
-                    keccak256(abi.encodePacked(eip712Transfer.nonces)),
-                    eip712Transfer.fromStake
+                    keccak256(abi.encodePacked(eip712Transfer.nonces))
                 )
             );
     }
@@ -411,8 +406,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                     key.to,
                     key.amount,
                     keccak256(abi.encodePacked(key.nftIds)),
-                    keccak256(abi.encodePacked(key.nonces)),
-                    key.fromStake
+                    keccak256(abi.encodePacked(key.nonces))
                 )
             );
     }
@@ -538,16 +532,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                     eip712SetNftPriceKey.nonce
                 )
             );
-    }
-
-    /**
-     * Allows transfering tokens to the Unchained Network.
-     * @param amount The amount of tokens to transfer to the Unchained Network.
-     */
-    function transferIn(uint256 amount) external {
-        _token.safeTransferFrom(_msgSender(), address(this), amount);
-        _balances[_msgSender()] += amount;
-        emit TransferIn(_msgSender(), amount);
     }
 
     /**
@@ -930,8 +914,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 eip712Transfer.to,
                 eip712Transfer.amount,
                 eip712Transfer.nftIds,
-                eip712Transfer.nonces,
-                eip712Transfer.fromStake
+                eip712Transfer.nonces
             );
 
             bytes32 eipHash = hash(transferKey);
@@ -975,7 +958,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             transferData.info.from = eip712Transfer.from;
             transferData.info.to = eip712Transfer.to;
             transferData.info.nonces = eip712Transfer.nonces;
-            transferData.info.fromStake = eip712Transfer.fromStake;
             transferData.info.voted += updateGetVotingPower(userStake);
 
             if (transferData.info.accepted) {
@@ -986,22 +968,13 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 burnTransferNonces(i, eip712Transfer.to, eip712Transfer.nonces);
                 transferData.info.accepted = true;
 
-                if (transferData.info.fromStake) {
-                    _totalVotingPower -= eip712Transfer.amount;
-                    _stakes[eip712Transfer.from].amount -= eip712Transfer
-                        .amount;
-                } else {
-                    _balances[eip712Transfer.from] -= eip712Transfer.amount;
-                }
+                _totalVotingPower -= eip712Transfer.amount;
+                _stakes[eip712Transfer.from].amount -= eip712Transfer.amount;
 
-                if (transferData.info.to != address(this)) {
-                    _token.safeTransfer(
-                        transferData.info.to,
-                        transferData.info.amount
-                    );
-                } else {
-                    _balances[address(this)] += eip712Transfer.amount;
-                }
+                _token.safeTransfer(
+                    transferData.info.to,
+                    transferData.info.amount
+                );
 
                 for (uint256 n = 0; n < transferData.info.nftIds.length; n++) {
                     uint256 nftId = transferData.info.nftIds[n];
