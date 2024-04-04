@@ -72,13 +72,13 @@ const signEip712 = async (signer, domain, types, message) => {
 
 describe("Staking", function () {
   let staking, token, nft, nftTracker;
-  let owner, user1, user2, user3, user4;
+  let owner, user1, user2, user3, user4, user5;
   let stakingAddr, tokenAddr, nftAddr, nftTrackerAddr;
   let user1bls, user2bls, user3bls, user4bls;
   let eip712domain;
 
   beforeEach(async function () {
-    [owner, user1, user2, user3, user4] = await ethers.getSigners();
+    [owner, user1, user2, user3, user4, user5] = await ethers.getSigners();
 
     // Deploy Mock ERC20 token
     const Token = await ethers.getContractFactory("DKenshi");
@@ -297,6 +297,110 @@ describe("Staking", function () {
 
       const signed = await signEip712(
         user,
+        eip712domain,
+        { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
+        message
+      );
+
+      messages.push(message);
+      signatures.push(signed);
+    }
+
+    // Set the parameters
+    await staking.connect(owner).setParams(messages, signatures);
+
+    // Check the parameters
+    const contractParams = await staking.getParams();
+    expect(contractParams.token).to.equal(params.token);
+    expect(contractParams.nft).to.equal(params.nft);
+    expect(contractParams.threshold).to.equal(params.threshold);
+    expect(contractParams.expiration).to.equal(params.expiration);
+
+    // getSetParamsData reports correct values
+    const setParamsData = await staking.getSetParamsData(params);
+    expect(setParamsData.voted).to.equal(ethers.parseUnits("1500"));
+    expect(setParamsData.expiration).to.equal(params.expiration);
+
+    // getRequestedSetParams reports correct values
+    expect(await staking.getRequestedSetParams(params, user1.address)).to.equal(
+      true
+    );
+    expect(await staking.getRequestedSetParams(params, user2.address)).to.equal(
+      true
+    );
+    expect(await staking.getRequestedSetParams(params, user3.address)).to.equal(
+      true
+    );
+    expect(await staking.getRequestedSetParams(params, user4.address)).to.equal(
+      false
+    );
+  });
+
+  it("allows signing EIP712 setParam messages with the signer address instead of staker", async function () {
+    // Stake tokens for each user
+    for (const user of [user1, user2, user3, user4]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    const signerForUser1 = user5;
+
+    // Sign EIP712 message for SetSigner
+    const message = {
+      staker: user1.address,
+      signer: signerForUser1.address,
+    };
+
+    const firstSignature = await signEip712(
+      user1,
+      eip712domain,
+      { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
+      message
+    );
+
+    const secondSignature = await signEip712(
+      signerForUser1,
+      eip712domain,
+      { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
+      message
+    );
+
+    // Set the signer
+    await staking
+      .connect(owner)
+      .setSigner(message, firstSignature, secondSignature);
+
+    // Sign EIP712 message for SetParams
+    const messages = [];
+    const signatures = [];
+
+    const params = {
+      token: tokenAddr,
+      nft: nftAddr,
+      nftTracker: nftTrackerAddr,
+      threshold: 60,
+      expiration: 60 * 60 * 24 * 7,
+      collector: owner.address,
+      nonce: 0,
+      fromStake: false,
+    };
+
+    const signers = [
+      { staker: user1, signer: signerForUser1 },
+      { staker: user2, signer: user2 },
+      { staker: user3, signer: user3 },
+    ];
+
+    for (const { staker, signer } of signers) {
+      const message = {
+        requester: staker.address,
+        ...params,
+      };
+
+      const signed = await signEip712(
+        signer,
         eip712domain,
         { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
         message
@@ -615,73 +719,6 @@ describe("Staking", function () {
 
     const stakerToSigner = await staking.stakerToSigner(user1.address);
     expect(stakerToSigner).to.equal(signer);
-  });
-
-  it("allows signing EIP712 messages with the signer address instead of staker", async function () {
-    await staking
-      .connect(user1)
-      .stake(7 * 60 * 60 * 24, ethers.parseUnits("500"), []);
-
-    await token.connect(user4).approve(stakingAddr, ethers.parseUnits("500"));
-    await staking.connect(user4).transferIn(ethers.parseUnits("500"));
-
-    const signer = user2.address;
-
-    // Sign EIP712 message for SetSigner
-    const message = {
-      staker: user1.address,
-      signer: signer,
-    };
-
-    const firstSignature = await signEip712(
-      user1,
-      eip712domain,
-      { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message
-    );
-
-    const secondSignature = await signEip712(
-      user2,
-      eip712domain,
-      { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message
-    );
-
-    // Set the signer
-    await staking
-      .connect(owner)
-      .setSigner(message, firstSignature, secondSignature);
-
-    // Sign EIP712 message for Transfer
-    const amount = ethers.parseUnits("100");
-
-    const transfer = {
-      signer: user1.address,
-      from: stakingAddr,
-      to: user3.address,
-      nftIds: [],
-      amount: amount,
-      nonces: [0],
-      fromStake: false,
-    };
-
-    const signed = await signEip712(
-      user2,
-      eip712domain,
-      { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-      transfer
-    );
-
-    const messages = [transfer];
-    const signatures = [signed];
-
-    const preTransfer = await token.balanceOf(user3.address);
-
-    // Transfer the tokens
-    await staking.connect(owner).transferOut(messages, signatures);
-
-    const postTransfer = await token.balanceOf(user3.address);
-    expect(postTransfer).to.equal(preTransfer + amount);
   });
 
   it("allows getting user stake with bls address", async function () {

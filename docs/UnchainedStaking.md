@@ -601,22 +601,6 @@ function stakerToSigner(address staker) external view returns (address)
 |---|---|---|
 | _0 | address | The address of the signer set by the staker. |
 
-### transferIn
-
-```solidity
-function transferIn(uint256 amount) external nonpayable
-```
-
-Allows transfering tokens to the Unchained Network.
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| amount | uint256 | The amount of tokens to transfer to the Unchained Network. |
-
 ### transferOut
 
 ```solidity
