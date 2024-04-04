@@ -601,10 +601,10 @@ function stakerToSigner(address staker) external view returns (address)
 |---|---|---|
 | _0 | address | The address of the signer set by the staker. |
 
-### transferOut
+### transfer
 
 ```solidity
-function transferOut(UnchainedStaking.EIP712Transfer[] eip712Transferes, UnchainedStaking.Signature[] signatures) external nonpayable
+function transfer(UnchainedStaking.EIP712Transfer[] eip712Transferes, UnchainedStaking.Signature[] signatures) external nonpayable
 ```
 
 

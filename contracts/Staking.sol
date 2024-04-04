@@ -892,7 +892,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @param eip712Transferes An array of EIP712Transfer structures containing details of each transfer request.
      * @param signatures An array of signatures corresponding to each transfer request for validation.
      */
-    function transferOut(
+    function transfer(
         EIP712Transfer[] memory eip712Transferes,
         Signature[] memory signatures
     ) external nonReentrant {
