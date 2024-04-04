@@ -35,6 +35,7 @@ const EIP712_TYPES = {
     { name: "requester", type: "address" },
     { name: "token", type: "address" },
     { name: "nft", type: "address" },
+    { name: "nftTracker", type: "address" },
     { name: "threshold", type: "uint256" },
     { name: "expiration", type: "uint256" },
     { name: "nonce", type: "uint256" },
@@ -42,6 +43,7 @@ const EIP712_TYPES = {
   EIP712SetParamsKey: [
     { name: "token", type: "address" },
     { name: "nft", type: "address" },
+    { name: "nftTracker", type: "address" },
     { name: "threshold", type: "uint256" },
     { name: "expiration", type: "uint256" },
     { name: "nonce", type: "uint256" },
@@ -63,16 +65,15 @@ const EIP712_TYPES = {
   ],
 };
 
-
 const signEip712 = async (signer, domain, types, message) => {
   const signature = await signer.signTypedData(domain, types, message);
   return ethers.Signature.from(signature);
 };
 
 describe("Staking", function () {
-  let staking, token, nft;
+  let staking, token, nft, nftTracker;
   let owner, user1, user2, user3, user4;
-  let stakingAddr, tokenAddr, nftAddr;
+  let stakingAddr, tokenAddr, nftAddr, nftTrackerAddr;
   let user1bls, user2bls, user3bls, user4bls;
   let eip712domain;
 
@@ -100,9 +101,17 @@ describe("Staking", function () {
 
     // Deploy the Staking contract
     const Staking = await ethers.getContractFactory("UnchainedStaking");
-    staking = await Staking.deploy(tokenAddr, nftAddr, nftTrackerAddr, 10, "Unchained", "1");
+    staking = await Staking.deploy(
+      tokenAddr,
+      nftAddr,
+      nftTrackerAddr,
+      10,
+      "Unchained",
+      "1"
+    );
 
     stakingAddr = await staking.getAddress();
+    await nftTracker.transferOwnership(nftAddr);
 
     eip712domain = {
       name: "Unchained",
@@ -343,6 +352,7 @@ describe("Staking", function () {
     const params = {
       token: tokenAddr,
       nft: nftAddr,
+      nftTracker: nftTrackerAddr,
       threshold: 60,
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
@@ -372,7 +382,6 @@ describe("Staking", function () {
     ).to.be.revertedWithCustomError(staking, "AlreadyVoted(uint256)");
   });
 
-
   it("allows transfering in and out of the Unchained Network", async function () {
     for (const user of [user1, user2, user3]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
@@ -394,7 +403,7 @@ describe("Staking", function () {
       nftIds: [],
       amount: ethers.parseUnits("100"),
       nonces: [0],
-      fromStake: false
+      fromStake: false,
     };
 
     for (const user of [user1, user2, user3]) {
