@@ -243,10 +243,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     error WrongNFT();
-    error WrongEIP712Signature();
     error AmountZero();
     error DurationZero();
-    error AddressZero();
     error NotUnlocked();
     error AlreadyStaked();
     error AddressInUse();
@@ -255,11 +253,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     error Forbidden();
     error NonceUsed(uint256 index, uint256 nonce);
     error LengthMismatch();
-    error NotConsumer(uint256 index);
     error InvalidSignature(uint256 index);
-    error AlreadyAccused(uint256 index);
     error VotingPowerZero(uint256 index);
-    error AlreadyVoted(uint256 index);
     error TopicExpired(uint256 index);
     error StakeExpiresBeforeVote(uint256 index);
 
@@ -1413,7 +1408,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             Params storage setParamsData = _setParams[eipHash];
 
             if (setParamsData.requesters[eip712SetParam.requester]) {
-                revert AlreadyVoted(i);
+                continue;
             }
 
             Signature memory signature = signatures[i];
@@ -1577,7 +1572,7 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
             NftPrice storage nftPriceData = _setNftPrice[eipHash];
 
             if (nftPriceData.requesters[eip712SetNftPrice.requester]) {
-                revert AlreadyVoted(i);
+                continue;
             }
 
             Signature memory signature = signatures[i];
