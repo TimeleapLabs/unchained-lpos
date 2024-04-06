@@ -1065,11 +1065,6 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         Signature memory stakerSignature,
         Signature memory signerSignature
     ) external {
-        // Disallow setting recursive signers.
-        if (_signerToStaker[eip712SetSigner.signer] != address(0)) {
-            revert AddressInUse();
-        }
-
         bool valid = verify(eip712SetSigner, stakerSignature, signerSignature);
 
         if (!valid) {
