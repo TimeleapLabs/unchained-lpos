@@ -4,7 +4,7 @@
 
 > Unchained Staking
 
-This contract allows users to stake ERC20 tokens and ERC721 NFTs, offering functionalities to stake, unstake, extend stakes, and manage transfering in case of misbehavior. It implements an EIP-712 domain for secure off-chain signature verifications, enabling decentralized governance actions like voting or transfering without on-chain transactions for each vote. The contract includes a transfering mechanism where staked tokens can be transfered (removed from the stake) if the majority of voting power agrees on a misbehavior.
+This contract allows users to stake ERC20 tokens and ERC721 NFTs, offering functionalities to stake, unstake, extend stakes, and manage transfering in case of misbehavior. It implements an EIP-712 domain for secure off-chain signature verifications, enabling decentralized governance actions like voting or transfering without on-chain transactions for each vote. The contract includes a transfering mechanism where staked tokens can be transfered (removed from the stake) if the majority of voting power agrees on a misbehavior or a transfer request. The contract also allows users to set their BLS (Boneh-Lynn-Shacham) address for secure off-chain signing and verification. The contract also includes a consensus mechanism where users can set parameters for the contract, such as the token address, NFT address, a threshold value for certain operations, and an expiration time for voting on proposals. The consensus mechanism requires a majority vote to approve changes to the contract&#39;s parameters. The contract also includes a mechanism to set the price of NFTs, which can be used to govern the price of NFTs in the system. This mechanism requires a majority vote to approve changes to the price of NFTs. The contract also includes a mechanism to set a signer for a staker, allowing stakers to delegate signing authority to another address for secure off-chain signing and verification.
 
 
 
@@ -189,10 +189,10 @@ function getRequestedSetParams(UnchainedStaking.EIP712SetParamsKey key, address 
 |---|---|---|
 | _0 | bool | undefined |
 
-### getRequestedTransferOut
+### getRequestedTransfer
 
 ```solidity
-function getRequestedTransferOut(UnchainedStaking.EIP712TransferKey key, address transferer) external view returns (bool)
+function getRequestedTransfer(UnchainedStaking.EIP712TransferKey key, address transferer) external view returns (bool)
 ```
 
 
@@ -317,10 +317,10 @@ function getTotalVotingPower() external view returns (uint256)
 |---|---|---|
 | _0 | uint256 | The total voting power from all staked tokens. |
 
-### getTransferOutData
+### getTransferData
 
 ```solidity
-function getTransferOutData(UnchainedStaking.EIP712TransferKey key) external view returns (struct UnchainedStaking.TransferInfo)
+function getTransferData(UnchainedStaking.EIP712TransferKey key) external view returns (struct UnchainedStaking.TransferInfo)
 ```
 
 
@@ -696,60 +696,40 @@ function verify(UnchainedStaking.EIP712SetSigner eip712SetSigner, UnchainedStaki
 
 ## Events
 
-### Accused
-
-```solidity
-event Accused(address accused, address accuser, uint256 amount, uint256 voted, bytes32 incident)
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| accused  | address | undefined |
-| accuser  | address | undefined |
-| amount  | uint256 | undefined |
-| voted  | uint256 | undefined |
-| incident  | bytes32 | undefined |
-
 ### BlsAddressChanged
 
 ```solidity
-event BlsAddressChanged(address user, bytes32 from, bytes32 to)
+event BlsAddressChanged(address indexed user, bytes32 indexed from, bytes32 indexed to)
 ```
 
 
 
-
+*Event emitted when a user sets their BLS address.*
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| user  | address | undefined |
-| from  | bytes32 | undefined |
-| to  | bytes32 | undefined |
+| user `indexed` | address | The address of the user who set their BLS address. |
+| from `indexed` | bytes32 | The previous BLS address. |
+| to `indexed` | bytes32 | The new BLS address. |
 
 ### Extended
 
 ```solidity
-event Extended(address user, uint256 unlock)
+event Extended(address indexed user, uint256 unlock)
 ```
 
 
 
-
+*Event emitted when a user extends the duration of their stake.*
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| user  | address | undefined |
-| unlock  | uint256 | undefined |
+| user `indexed` | address | The address of the user who extended the stake. |
+| unlock  | uint256 | The new unlock time for the stake. |
 
 ### OwnershipTransferred
 
@@ -776,144 +756,111 @@ event ParamsChanged(address token, address nft, address nftTracker, uint256 thre
 
 
 
-
+*Event emitted when a parameter change consensus proposal is accepted.*
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| token  | address | undefined |
-| nft  | address | undefined |
-| nftTracker  | address | undefined |
-| threshold  | uint256 | undefined |
-| expiration  | uint256 | undefined |
-| voted  | uint256 | undefined |
-| nonce  | uint256 | undefined |
+| token  | address | The new token address. |
+| nft  | address | The new NFT address. |
+| nftTracker  | address | The new NFT tracker address. |
+| threshold  | uint256 | The new threshold value. |
+| expiration  | uint256 | The new expiration time. |
+| voted  | uint256 | The total voting power that voted. |
+| nonce  | uint256 | The nonce of the proposal. |
 
 ### SignerChanged
 
 ```solidity
-event SignerChanged(address staker, address signer)
+event SignerChanged(address indexed staker, address indexed signer)
 ```
 
 
 
-
+*Event emitted when a user sets a new signer.*
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| staker  | address | undefined |
-| signer  | address | undefined |
+| staker `indexed` | address | The address of the staker who set the new signer. |
+| signer `indexed` | address | The address of the new signer. |
 
 ### StakeIncreased
 
 ```solidity
-event StakeIncreased(address user, uint256 amount, uint256[] nftIds)
+event StakeIncreased(address indexed user, uint256 amount, uint256[] nftIds)
 ```
 
 
 
-
+*Event emitted when a user increases their stake amount and NFTs.*
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| user  | address | undefined |
-| amount  | uint256 | undefined |
-| nftIds  | uint256[] | undefined |
+| user `indexed` | address | The address of the user who increased the stake. |
+| amount  | uint256 | The new amount of tokens staked. |
+| nftIds  | uint256[] | An array of additional NFT IDs staked. |
 
 ### Staked
 
 ```solidity
-event Staked(address user, uint256 unlock, uint256 amount, uint256[] nftIds)
+event Staked(address indexed user, uint256 unlock, uint256 amount, uint256[] nftIds)
 ```
 
 
 
-
+*Event emitted when a user stakes tokens and NFTs.*
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| user  | address | undefined |
-| unlock  | uint256 | undefined |
-| amount  | uint256 | undefined |
-| nftIds  | uint256[] | undefined |
+| user `indexed` | address | The address of the user who staked the tokens and NFTs. |
+| unlock  | uint256 | The unlock time for the stake. |
+| amount  | uint256 | The amount of tokens staked. |
+| nftIds  | uint256[] | An array of NFT IDs staked. |
 
-### TransferIn
+### Transfer
 
 ```solidity
-event TransferIn(address from, uint256 amount)
+event Transfer(address from, address to, uint256 amount, uint256[] nftIds, uint256[] nonces)
 ```
 
 
 
-
+*Event emitted when a transfer request is accepted.*
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| from  | address | undefined |
-| amount  | uint256 | undefined |
-
-### TransferOut
-
-```solidity
-event TransferOut(address to, uint256 amount, uint256[] nftIds, uint256[] nonces)
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| to  | address | undefined |
-| amount  | uint256 | undefined |
-| nftIds  | uint256[] | undefined |
-| nonces  | uint256[] | undefined |
+| from  | address | The address of the sender. |
+| to  | address | The address of the recipient. |
+| amount  | uint256 | The amount of tokens transferred. |
+| nftIds  | uint256[] | An array of NFT IDs transferred. |
+| nonces  | uint256[] | An array of nonces used in the transfer. |
 
 ### UnStaked
 
 ```solidity
-event UnStaked(address user, uint256 amount, uint256[] nftIds)
+event UnStaked(address indexed user, uint256 amount, uint256[] nftIds)
 ```
 
 
 
-
+*Event emitted when a user unstakes tokens and NFTs.*
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| user  | address | undefined |
-| amount  | uint256 | undefined |
-| nftIds  | uint256[] | undefined |
-
-### VotedForParams
-
-```solidity
-event VotedForParams(address user, uint256 nonce)
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| user  | address | undefined |
-| nonce  | uint256 | undefined |
+| user `indexed` | address | The address of the user who unstaked the tokens and NFTs. |
+| amount  | uint256 | The amount of tokens unstaked. |
+| nftIds  | uint256[] | An array of NFT IDs unstaked. |
 
 
 

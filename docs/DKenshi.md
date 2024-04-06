@@ -2,11 +2,11 @@
 
 
 
+> dKenshi
 
 
 
-
-
+*ERC20 token contract for Kenshi (for testing purposes only)*
 
 ## Methods
 

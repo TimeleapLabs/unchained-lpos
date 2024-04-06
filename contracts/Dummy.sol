@@ -6,12 +6,20 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
+/**
+ * @title dKenshi
+ * @dev ERC20 token contract for Kenshi (for testing purposes only)
+ */
 contract DKenshi is ERC20 {
     constructor() ERC20("dKenshi", "dKNS") {
         _mint(msg.sender, 1e10 * 10 ** decimals());
     }
 }
 
+/**
+ * @title dKatana
+ * @dev ERC721 token contract for Katana (for testing purposes only)
+ */
 contract DKatana is ERC721, ERC721Enumerable, Ownable {
     constructor() ERC721("dKatana", "dKAT") Ownable(msg.sender) {}
 

@@ -3,6 +3,10 @@ pragma solidity 0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+/**
+ * @title NFTTracker
+ * @dev Contract to track the prices of NFTs
+ */
 contract NFTTracker is Ownable {
     mapping(uint256 => uint256) private _prices;
 
@@ -10,10 +14,20 @@ contract NFTTracker is Ownable {
 
     constructor() Ownable(_msgSender()) {}
 
+    /**
+     * @dev Set the price of an NFT
+     * @param nftId The id of the NFT
+     * @param price The price of the NFT
+     */
     function setPrice(uint256 nftId, uint256 price) external onlyOwner {
         _prices[nftId] = price;
     }
 
+    /**
+     * @dev Set the prices of multiple NFTs
+     * @param nftIds The ids of the NFTs
+     * @param prices The prices of the NFTs
+     */
     function setPrices(
         uint256[] calldata nftIds,
         uint256[] calldata prices
@@ -27,6 +41,11 @@ contract NFTTracker is Ownable {
         }
     }
 
+    /**
+     * @dev Get the price of an NFT
+     * @param nftId The id of the NFT
+     * @return The price of the NFT
+     */
     function getPrice(uint256 nftId) external view returns (uint256) {
         return _prices[nftId];
     }
