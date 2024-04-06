@@ -2,11 +2,11 @@
 
 
 
+> dKatana
 
 
 
-
-
+*ERC721 token contract for Katana (for testing purposes only)*
 
 ## Methods
 

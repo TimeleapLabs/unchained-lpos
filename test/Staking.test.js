@@ -527,7 +527,7 @@ describe("Staking", function () {
     await staking.connect(owner).transfer(messages, signatures);
 
     // Transfer data should be available
-    const slashData = await staking.getTransferOutData(transfer);
+    const slashData = await staking.getTransferData(transfer);
     expect(slashData.to).to.equal(user1.address);
     expect(slashData.amount).to.equal(ethers.parseUnits("100"));
     expect(slashData.voted).to.equal(ethers.parseUnits("1500"));
@@ -535,16 +535,16 @@ describe("Staking", function () {
 
     // getRequestedTransferOut reports correct values
     expect(
-      await staking.getRequestedTransferOut(transfer, user1.address)
+      await staking.getRequestedTransfer(transfer, user1.address)
     ).to.equal(true);
     expect(
-      await staking.getRequestedTransferOut(transfer, user2.address)
+      await staking.getRequestedTransfer(transfer, user2.address)
     ).to.equal(true);
     expect(
-      await staking.getRequestedTransferOut(transfer, user3.address)
+      await staking.getRequestedTransfer(transfer, user3.address)
     ).to.equal(true);
     expect(
-      await staking.getRequestedTransferOut(transfer, user4.address)
+      await staking.getRequestedTransfer(transfer, user4.address)
     ).to.equal(false);
 
     // Tokens should be available in the user's account

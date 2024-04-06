@@ -2,11 +2,11 @@
 
 
 
+> Airdrop
 
 
 
-
-
+*Contract to distribute airdrops (for testing purposes only)*
 
 ## Methods
 

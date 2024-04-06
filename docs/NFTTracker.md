@@ -2,11 +2,11 @@
 
 
 
+> NFTTracker
 
 
 
-
-
+*Contract to track the prices of NFTs*
 
 ## Methods
 
@@ -18,19 +18,19 @@ function getPrice(uint256 nftId) external view returns (uint256)
 
 
 
-
+*Get the price of an NFT*
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| nftId | uint256 | undefined |
+| nftId | uint256 | The id of the NFT |
 
 #### Returns
 
 | Name | Type | Description |
 |---|---|---|
-| _0 | uint256 | undefined |
+| _0 | uint256 | The price of the NFT |
 
 ### owner
 
@@ -68,14 +68,14 @@ function setPrice(uint256 nftId, uint256 price) external nonpayable
 
 
 
-
+*Set the price of an NFT*
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| nftId | uint256 | undefined |
-| price | uint256 | undefined |
+| nftId | uint256 | The id of the NFT |
+| price | uint256 | The price of the NFT |
 
 ### setPrices
 
@@ -85,14 +85,14 @@ function setPrices(uint256[] nftIds, uint256[] prices) external nonpayable
 
 
 
-
+*Set the prices of multiple NFTs*
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| nftIds | uint256[] | undefined |
-| prices | uint256[] | undefined |
+| nftIds | uint256[] | The ids of the NFTs |
+| prices | uint256[] | The prices of the NFTs |
 
 ### transferOwnership
 
