@@ -109,7 +109,7 @@ describe("Staking", function () {
     );
 
     stakingAddr = await staking.getAddress();
-    await nftTracker.transferOwnership(nftAddr);
+    await nftTracker.transferOwnership(stakingAddr);
 
     eip712domain = {
       name: "Unchained",
@@ -459,7 +459,7 @@ describe("Staking", function () {
       nonce: 0,
     };
 
-    for (const user of [user1, user1]) {
+    for (const user of [user1, user1, user1, user1]) {
       const message = {
         requester: user.address,
         ...params,
@@ -477,9 +477,12 @@ describe("Staking", function () {
     }
 
     // Set the parameters
-    expect(
-      staking.connect(owner).setParams(messages, signatures)
-    ).to.be.revertedWithCustomError(staking, "AlreadyVoted(uint256)");
+    staking.connect(owner).setParams(messages, signatures);
+
+    // Check the parameters, they shouldn't be set
+    const contractParams = await staking.getParams();
+    expect(contractParams.threshold).to.not.equal(params.threshold);
+    expect(contractParams.expiration).to.not.equal(params.expiration);
   });
 
   it("allows transfering in and out of the Unchained Network", async function () {
@@ -732,5 +735,66 @@ describe("Staking", function () {
     await expect(
       nft.connect(user1).safeTransferFrom(user1.address, stakingAddr, 1)
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
+  });
+
+  it("allows setting nft price", async function () {
+    for (const user of [user2, user3, user4]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("50"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("50"), []);
+    }
+    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("200"));
+    await staking
+      .connect(user1)
+      .stake(25 * 60 * 60 * 24, ethers.parseUnits("200"), []);
+
+    // Sign EIP712 message for setNftPrice
+    const nftprices = [];
+    const signatures = [];
+
+    const nftSetPrice = {
+      requester: user1.address,
+      nftId: 7,
+      price: ethers.parseUnits("5"),
+      nonce: 0,
+    };
+
+    const nftprice = {
+      signer: user1.address,
+      ...nftSetPrice,
+    };
+
+    const signed = await signEip712(
+      user1,
+      eip712domain,
+      { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
+      nftprice
+    );
+
+    nftprices.push(nftprice);
+    signatures.push(signed);
+
+    await staking.connect(user1).setNftPrices(nftprices, signatures);
+    const nftSetPriceKey = {
+      nftId: 7,
+      price: ethers.parseUnits("5"),
+      nonce: 0,
+    };
+
+    // Call the getRequestedSetNftPrice function to check if the address has requested the set of NFT prices
+    const hasRequested = await staking.getRequestedSetNftPrice(
+      nftSetPriceKey,
+      user1.address
+    );
+    const nftPriceInfo = await staking.getSetNftPriceData(nftSetPriceKey);
+    const nftPriceResult = await staking.getNftPrice(7);
+
+    expect(nftPriceInfo.price).to.equal(ethers.parseUnits("5"));
+    expect(nftPriceInfo.accepted).to.equal(true);
+    expect(nftPriceInfo.voted).to.equal(ethers.parseUnits("200"));
+
+    expect(nftPriceResult).to.equal(ethers.parseUnits("5"));
+    expect(hasRequested).to.equal(true);
   });
 });

@@ -909,33 +909,6 @@ error AddressInsufficientBalance(address account)
 |---|---|---|
 | account | address | undefined |
 
-### AddressZero
-
-```solidity
-error AddressZero()
-```
-
-
-
-
-
-
-### AlreadyAccused
-
-```solidity
-error AlreadyAccused(uint256 index)
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| index | uint256 | undefined |
-
 ### AlreadyStaked
 
 ```solidity
@@ -946,22 +919,6 @@ error AlreadyStaked()
 
 
 
-
-### AlreadyVoted
-
-```solidity
-error AlreadyVoted(uint256 index)
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| index | uint256 | undefined |
 
 ### AmountZero
 
@@ -1105,22 +1062,6 @@ error NonceUsed(uint256 index, uint256 nonce)
 | index | uint256 | undefined |
 | nonce | uint256 | undefined |
 
-### NotConsumer
-
-```solidity
-error NotConsumer(uint256 index)
-```
-
-
-
-
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| index | uint256 | undefined |
-
 ### NotUnlocked
 
 ```solidity
@@ -1249,17 +1190,6 @@ error VotingPowerZero(uint256 index)
 | Name | Type | Description |
 |---|---|---|
 | index | uint256 | undefined |
-
-### WrongEIP712Signature
-
-```solidity
-error WrongEIP712Signature()
-```
-
-
-
-
-
 
 ### WrongNFT
 
