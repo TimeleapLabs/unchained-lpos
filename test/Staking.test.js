@@ -925,4 +925,31 @@ describe("Staking", function () {
 
      expect(votingPowerOfUser).to.equal(ethers.parseUnits("200"));
   });
+
+  it("allows the owner to call the setPrices function on the nftTracker", async function () {
+    const nftIds = [6,7];
+    const prices = [ethers.parseUnits("6"), ethers.parseUnits("7")];
+
+      //Deploy Mock NFT tracker
+      const NewNFTTracker = await ethers.getContractFactory("NFTTracker");
+      const newNftTracker = await NewNFTTracker.deploy();
+  
+    await newNftTracker["setPrices(uint256[],uint256[])"](nftIds, prices)
+    const priceOfNft1 = await newNftTracker["getPrice(uint256)"](6)
+    const priceOfNft2 = await newNftTracker["getPrice(uint256)"](7)
+    expect(priceOfNft1).to.equal(ethers.parseUnits("6"));
+    expect(priceOfNft2).to.equal(ethers.parseUnits("7"));
+  });
+
+  it("reverts if nftIds and prices length mismatch", async function () {
+    const nftIds = [6,7];
+    const prices = [ethers.parseUnits("6")];
+
+      //Deploy Mock NFT tracker
+      const NewNFTTracker = await ethers.getContractFactory("NFTTracker");
+      const newNftTracker = await NewNFTTracker.deploy();
+  
+    await expect(newNftTracker["setPrices(uint256[],uint256[])"](nftIds, prices))
+      .to.be.revertedWithCustomError(staking, "LengthMismatch()");
+  });
 });
