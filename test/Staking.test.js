@@ -136,7 +136,7 @@ describe("Staking", function () {
       .approve(stakingAddr, ethers.parseUnits("100000"));
 
     await nft.connect(user1).setApprovalForAll(stakingAddr, true);
-
+    
     // Generate BLS addresses for users (Buffer[20])
     user1bls = randomBytes(20);
     user2bls = randomBytes(20);
@@ -216,6 +216,26 @@ describe("Staking", function () {
     await expect(
       staking.connect(owner).recoverERC20(tokenAddr, owner.address, 100)
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
+  });
+
+  it("allows recovering the stake token", async function () {
+    await staking.connect(user1).stake(1, ethers.parseUnits("500"), [1]);
+
+    // Deploy a mock ERC20 contract for testing
+    const MockERC20 = await ethers.getContractFactory("DKenshi");
+    const mockToken = await MockERC20.deploy();
+
+    // Transfer some tokens to the staking contract
+    await mockToken.transfer(stakingAddr, ethers.parseUnits("100"));
+
+    const mockTokenAddr = await mockToken.getAddress();
+
+    // Recover ERC20 tokens, expecting the safeTransfer function to be called
+    await staking.connect(owner).recoverERC20(mockTokenAddr, user1.address, ethers.parseUnits("100"));
+
+    // Check if the tokens were transferred successfully
+    const recipientBalance = await mockToken.balanceOf(user1.address);
+    expect(recipientBalance).to.equal(ethers.parseUnits("100"));
   });
 
   it("rejects staking with zero amount", async function () {
@@ -486,29 +506,29 @@ describe("Staking", function () {
   });
 
   it("allows transfering in and out of the Unchained Network", async function () {
-    for (const user of [user1, user2, user3]) {
+    for (const user of [user4, user2, user3]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
       await staking
         .connect(user)
         .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
     }
 
-    await token.connect(user4).approve(stakingAddr, ethers.parseUnits("500"));
-    await staking.connect(user4).stake(3600, ethers.parseUnits("500"), []);
+    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("500"));
+    await staking.connect(user1).stake(3600, ethers.parseUnits("500"), [1]);
 
     // Sign EIP712 message for Transfer
     const messages = [];
     const signatures = [];
 
     const transfer = {
-      from: user4.address,
-      to: user1.address,
-      nftIds: [],
+      from: user1.address,
+      to: user4.address,
+      nftIds: [1],
       amount: ethers.parseUnits("100"),
       nonces: [0],
     };
 
-    for (const user of [user1, user2, user3]) {
+    for (const user of [user4, user2, user3]) {
       const message = {
         signer: user.address,
         ...transfer,
@@ -526,19 +546,19 @@ describe("Staking", function () {
     }
 
     // Transfer the tokens
-    const preTransfer = await token.balanceOf(user1.address);
+    const preTransfer = await token.balanceOf(user4.address);
     await staking.connect(owner).transfer(messages, signatures);
 
     // Transfer data should be available
     const slashData = await staking.getTransferData(transfer);
-    expect(slashData.to).to.equal(user1.address);
+    expect(slashData.to).to.equal(user4.address);
     expect(slashData.amount).to.equal(ethers.parseUnits("100"));
     expect(slashData.voted).to.equal(ethers.parseUnits("1500"));
     expect(slashData.accepted).to.equal(true);
 
     // getRequestedTransferOut reports correct values
     expect(
-      await staking.getRequestedTransfer(transfer, user1.address)
+      await staking.getRequestedTransfer(transfer, user4.address)
     ).to.equal(true);
     expect(
       await staking.getRequestedTransfer(transfer, user2.address)
@@ -547,11 +567,11 @@ describe("Staking", function () {
       await staking.getRequestedTransfer(transfer, user3.address)
     ).to.equal(true);
     expect(
-      await staking.getRequestedTransfer(transfer, user4.address)
+      await staking.getRequestedTransfer(transfer, user1.address)
     ).to.equal(false);
 
     // Tokens should be available in the user's account
-    const postTransfer = await token.balanceOf(user1.address);
+    const postTransfer = await token.balanceOf(user4.address);
     expect(postTransfer).to.equal(preTransfer + ethers.parseUnits("100"));
   });
 
@@ -747,7 +767,7 @@ describe("Staking", function () {
     await token.connect(user1).approve(stakingAddr, ethers.parseUnits("200"));
     await staking
       .connect(user1)
-      .stake(25 * 60 * 60 * 24, ethers.parseUnits("200"), []);
+      .stake(25 * 60 * 60 * 24, ethers.parseUnits("200"), [1,2]);
 
     // Sign EIP712 message for setNftPrice
     const nftprices = [];
@@ -918,7 +938,7 @@ describe("Staking", function () {
     await token.connect(user1).approve(stakingAddr, ethers.parseUnits("200"));
     await staking
       .connect(user1)
-      .stake(25 * 60 * 60 * 24, ethers.parseUnits("200"), []);
+      .stake(25 * 60 * 60 * 24, ethers.parseUnits("200"), [1,2,3]);
 
 
     const votingPowerOfUser = await staking["getVotingPower(bytes20)"](user1bls);
