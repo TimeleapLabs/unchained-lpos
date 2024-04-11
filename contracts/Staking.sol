@@ -1210,8 +1210,16 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * then managed by the Unchained network consensus mechanism.
      * @param amount The amount of tokens to move.
      */
-    function moveTokensToUnchained(uint256 amount) public {
-        _token.safeTransfer(_msgSender(), amount);
+    function transferToUnchained(uint256 amount) public {
+        if (amount == 0) {
+            revert AmountZero();
+        }
+
+        if (blsAddressOf(_msgSender()) == bytes20(0)) {
+            revert BlsNotSet();
+        }
+
+        _token.safeTransferFrom(_msgSender(), address(this), amount);
         _lockedInUnchained += amount;
         emit TransferToUnchained(_msgSender(), amount);
     }

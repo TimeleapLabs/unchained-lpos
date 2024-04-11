@@ -300,6 +300,23 @@ function getStake(bytes20 bls) external view returns (struct UnchainedStaking.St
 |---|---|---|
 | _0 | UnchainedStaking.Stake | The stake information associated with the given BLS address. |
 
+### getTotalLockedInUnchained
+
+```solidity
+function getTotalLockedInUnchained() external view returns (uint256)
+```
+
+
+
+*Retrieves the total amount of tokens locked in the Unchained network.*
+
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | uint256 | The total amount of tokens locked in the Unchained network. |
+
 ### getTotalVotingPower
 
 ```solidity
@@ -604,7 +621,7 @@ function stakerToSigner(address staker) external view returns (address)
 ### transfer
 
 ```solidity
-function transfer(UnchainedStaking.EIP712Transfer[] eip712Transferes, UnchainedStaking.Signature[] signatures) external nonpayable
+function transfer(UnchainedStaking.EIP712Transfer[] eip712Transfers, UnchainedStaking.Signature[] signatures) external nonpayable
 ```
 
 
@@ -615,7 +632,7 @@ function transfer(UnchainedStaking.EIP712Transfer[] eip712Transferes, UnchainedS
 
 | Name | Type | Description |
 |---|---|---|
-| eip712Transferes | UnchainedStaking.EIP712Transfer[] | undefined |
+| eip712Transfers | UnchainedStaking.EIP712Transfer[] | undefined |
 | signatures | UnchainedStaking.Signature[] | undefined |
 
 ### transferOwnership
@@ -633,6 +650,22 @@ function transferOwnership(address newOwner) external nonpayable
 | Name | Type | Description |
 |---|---|---|
 | newOwner | address | undefined |
+
+### transferToUnchained
+
+```solidity
+function transferToUnchained(uint256 amount) external nonpayable
+```
+
+
+
+*Moves tokens from a user to the Unchained contract. These tokens are then managed by the Unchained network consensus mechanism.*
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| amount | uint256 | The amount of tokens to move. |
 
 ### unstake
 
@@ -827,7 +860,7 @@ event Staked(address indexed user, uint256 unlock, uint256 amount, uint256[] nft
 ### Transfer
 
 ```solidity
-event Transfer(address from, address to, uint256 amount, uint256[] nftIds, uint256[] nonces)
+event Transfer(address indexed from, address indexed to, uint256 amount, uint256[] nftIds, uint256[] nonces)
 ```
 
 
@@ -838,11 +871,28 @@ event Transfer(address from, address to, uint256 amount, uint256[] nftIds, uint2
 
 | Name | Type | Description |
 |---|---|---|
-| from  | address | The address of the sender. |
-| to  | address | The address of the recipient. |
+| from `indexed` | address | The address of the sender. |
+| to `indexed` | address | The address of the recipient. |
 | amount  | uint256 | The amount of tokens transferred. |
 | nftIds  | uint256[] | An array of NFT IDs transferred. |
 | nonces  | uint256[] | An array of nonces used in the transfer. |
+
+### TransferToUnchained
+
+```solidity
+event TransferToUnchained(address indexed from, uint256 amount)
+```
+
+
+
+*Event emitted when a user moves their tokens to the Unchained contract. These tokens are then managed by the Unchained network consensus mechanism.*
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| from `indexed` | address | The address of the user who moved their tokens. |
+| amount  | uint256 | The amount of tokens moved. |
 
 ### UnStaked
 
@@ -1199,7 +1249,7 @@ error WrongNFT()
 
 
 
-
+*Error messages for the contract.*
 
 
 
