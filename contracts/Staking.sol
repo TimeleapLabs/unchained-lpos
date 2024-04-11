@@ -46,12 +46,19 @@ import "./Tracker.sol";
 contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    /**
+     * @dev Interfaces for the ERC20 token, ERC721 NFT, and NFT tracker
+     */
     IERC20 private _token;
     IERC721 private _nft;
     INFTTracker private _nftTracker;
 
     /**
      * @dev EIP712 domain struct for secure off-chain signature verification.
+     * @param name The name of the domain.
+     * @param version The version of the domain.
+     * @param chainId The chain ID of the domain.
+     * @param verifyingContract The address of the verifying contract.
      */
     struct EIP712Domain {
         string name;
@@ -63,6 +70,9 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     /**
      * @dev Struct containing the details of a signature for secure off-chain
      * verification.
+     * @param v The recovery ID.
+     * @param r The R value.
+     * @param s The S value.
      */
     struct Signature {
         uint8 v;
@@ -73,16 +83,28 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     /**
      * @dev Struct containing the details of a stake, including the amount
      * staked, the unlock time, and the NFTs staked.
+     * @param amount The amount of tokens staked.
+     * @param unlock The unlock time for the stake.
+     * @param nftIds An array of NFT IDs staked.
+     * @param consumable A flag indicating if the stake is consumable.
      */
     struct Stake {
         uint256 amount;
         uint256 unlock;
         uint256[] nftIds;
+        bool consumable;
     }
 
     /**
      * @dev Struct containing the details of a transfer request, including the
      * sender, recipient, amount, NFTs, nonces, and voting details.
+     * @param from The address of the sender.
+     * @param to The address of the recipient.
+     * @param amount The amount of tokens transferred.
+     * @param nftIds An array of NFT IDs transferred.
+     * @param voted The total voting power that voted.
+     * @param accepted A flag indicating if the transfer request was accepted.
+     * @param nonces An array of nonces used in the transfer.
      */
     struct TransferInfo {
         address from;
@@ -97,6 +119,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     /**
      * @dev Struct containing the details of a transfer request, including the
      * transfer details and the signers who have voted on the request.
+     * @param info The transfer details.
+     * @param signers A mapping of signers who have voted on the request.
      */
     struct TransferRequest {
         TransferInfo info;
@@ -107,6 +131,14 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @dev Struct containing the details of a parameter change consensus
      * proposal, including the token address, NFT address, NFT tracker address,
      * threshold value, expiration time, voting details, and nonce.
+     * @param token The new token address.
+     * @param nft The new NFT address.
+     * @param nftTracker The new NFT tracker address.
+     * @param threshold The new threshold value.
+     * @param expiration The new expiration time.
+     * @param voted The total voting power that voted.
+     * @param nonce The nonce of the proposal.
+     * @param accepted A flag indicating if the proposal was accepted.
      */
     struct ParamsInfo {
         address token;
@@ -123,6 +155,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @dev Struct containing the details of a parameter change consensus
      * proposal, including the proposal details and the signers who have voted
      * on the proposal.
+     * @param info The proposal details.
+     * @param requesters A mapping of signers who have voted on the proposal.
      */
     struct Params {
         ParamsInfo info;
@@ -132,6 +166,10 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     /**
      * @dev Struct containing the details of an NFT price change consensus
      * proposal, including the NFT ID, price, voting details, and nonce.
+     * @param nftId The NFT ID.
+     * @param price The new price to set.
+     * @param voted The total voting power that voted.
+     * @param accepted A flag indicating if the proposal was accepted.
      */
     struct NftPriceInfo {
         uint256 nftId;
@@ -144,6 +182,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @dev Struct containing the details of an NFT price change consensus
      * proposal, including the proposal details and the signers who have voted
      * on the proposal.
+     * @param info The proposal details.
+     * @param requesters A mapping of signers who have voted on the proposal.
      */
     struct NftPrice {
         NftPriceInfo info;
@@ -154,6 +194,12 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @dev EIP712 struct for securely signing and verifying transfer requests
      * off-chain. This struct includes the signer, sender, recipient, amount,
      * NFTs, and nonces involved in the transfer.
+     * @param signer The address of the signer.
+     * @param from The address of the sender.
+     * @param to The address of the recipient.
+     * @param amount The amount of tokens transferred.
+     * @param nftIds An array of NFT IDs transferred.
+     * @param nonces An array of nonces used in the transfer.
      */
     struct EIP712Transfer {
         address signer;
@@ -169,6 +215,11 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * off-chain. This struct includes the sender, recipient, amount, and nonces
      * involved in the transfer. This struct is used as a key for the transfer
      * request mapping.
+     * @param from The address of the sender.
+     * @param to The address of the recipient.
+     * @param amount The amount of tokens transferred.
+     * @param nftIds An array of NFT IDs transferred.
+     * @param nonces An array of nonces used in the transfer.
      */
     struct EIP712TransferKey {
         address from;
@@ -182,6 +233,13 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @dev EIP712 struct for securely signing and verifying parameter set
      * consensus requests off-chain. This struct includes the staker and signer
      * addresses involved in the operation.
+     * @param requester The address of the requester.
+     * @param token The address of the token.
+     * @param nft The address of the NFT.
+     * @param nftTracker The address of the NFT tracker.
+     * @param threshold The threshold value for the operation.
+     * @param expiration The expiration time for the operation.
+     * @param nonce The nonce of the operation.
      */
     struct EIP712SetParams {
         address requester;
@@ -198,6 +256,12 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * consensus requests off-chain. This struct includes the token and NFT
      * addresses, threshold value, expiration time, and nonce involved in the
      * operation. This struct is used as a key for the parameter set mapping.
+     * @param token The address of the token.
+     * @param nft The address of the NFT.
+     * @param nftTracker The address of the NFT tracker.
+     * @param threshold The threshold value for the operation.
+     * @param expiration The expiration time for the operation.
+     * @param nonce The nonce of the operation.
      */
     struct EIP712SetParamsKey {
         address token;
@@ -212,6 +276,10 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @dev EIP712 struct for securely signing and verifying NFT price set
      * consensus requests off-chain. This struct includes the requester, NFT ID,
      * price, and nonce involved in the operation.
+     * @param requester The address of the requester.
+     * @param nftId The NFT ID.
+     * @param price The new price to set.
+     * @param nonce The nonce of the operation.
      */
     struct EIP712SetNftPrice {
         address requester;
@@ -225,6 +293,9 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * consensus requests off-chain. This struct includes the NFT ID, price, and
      * nonce involved in the operation. This struct is used as a key for the NFT
      * price mapping.
+     * @param nftId The NFT ID.
+     * @param price The new price to set.
+     * @param nonce The nonce of the operation.
      */
     struct EIP712SetNftPriceKey {
         uint256 nftId;
@@ -236,12 +307,17 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @dev EIP712 struct for securely signing, verifying, and assigning a new
      * signer to a staker off-chain. This struct includes the staker and signer
      * addresses involved in the operation.
+     * @param staker The address of the staker.
+     * @param signer The address of the signer.
      */
     struct EIP712SetSigner {
         address staker;
         address signer;
     }
 
+    /**
+     * @dev Error messages for the contract.
+     */
     error WrongNFT();
     error AmountZero();
     error DurationZero();
@@ -268,6 +344,9 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      */
     mapping(uint256 => uint256) _cachedNftPrices;
 
+    /**
+     * @dev Mapping of transfer requests to their associated details.
+     */
     bytes32 immutable DOMAIN_SEPARATOR;
 
     bytes32 constant EIP712DOMAIN_TYPEHASH =
@@ -317,6 +396,12 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     uint256 private _consensusThreshold = 51;
     uint256 private _votingTopicExpiration = 1 days;
     uint256 private _totalVotingPower;
+
+    /**
+     * @dev Variables to track the total amount of tokens moved to the Unchained
+     * network to be managed by the consensus mechanism.
+     */
+    uint256 private _lockedInUnchained;
 
     /**
      * @dev Mapping of stakers to their associated stakes.
@@ -433,12 +518,21 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
      * @param nonces An array of nonces used in the transfer.
      */
     event Transfer(
-        address from,
-        address to,
+        address indexed from,
+        address indexed to,
         uint256 amount,
         uint256[] nftIds,
         uint256[] nonces
     );
+
+    /**
+     * @dev Event emitted when a user moves their tokens to the Unchained
+     * contract. These tokens are then managed by the Unchained network
+     * consensus mechanism.
+     * @param from The address of the user who moved their tokens.
+     * @param amount The amount of tokens moved.
+     */
+    event TransferToUnchained(address indexed from, uint256 amount);
 
     /**
      * @dev Event emitted when a parameter change consensus proposal is
@@ -1112,31 +1206,59 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     /**
+     * @dev Moves tokens from a user to the Unchained contract. These tokens are
+     * then managed by the Unchained network consensus mechanism.
+     * @param amount The amount of tokens to move.
+     */
+    function transferToUnchained(uint256 amount) public {
+        if (amount == 0) {
+            revert AmountZero();
+        }
+
+        if (blsAddressOf(_msgSender()) == bytes20(0)) {
+            revert BlsNotSet();
+        }
+
+        _token.safeTransferFrom(_msgSender(), address(this), amount);
+        _lockedInUnchained += amount;
+        emit TransferToUnchained(_msgSender(), amount);
+    }
+
+    /**
+     * @dev Retrieves the total amount of tokens locked in the Unchained
+     * network.
+     * @return The total amount of tokens locked in the Unchained network.
+     */
+    function getTotalLockedInUnchained() public view returns (uint256) {
+        return _lockedInUnchained;
+    }
+
+    /**
      * @dev Processes a batch of transfer requests against stakers for
      * misbehaviour, validated by signatures. Each transfer request decreases
      * the stake of the accused if the collective voting power of accusers
      * exceeds a threshold.
-     * @param eip712Transferes An array of EIP712Transfer structures containing
+     * @param eip712Transfers An array of EIP712Transfer structures containing
      * details of each transfer request.
      * @param signatures An array of signatures corresponding to each transfer
      * request for validation.
      */
     function transfer(
-        EIP712Transfer[] memory eip712Transferes,
+        EIP712Transfer[] memory eip712Transfers,
         Signature[] memory signatures
     ) external nonReentrant {
         if (block.number <= _consensusLock) {
             revert Forbidden();
         }
 
-        if (eip712Transferes.length != signatures.length) {
+        if (eip712Transfers.length != signatures.length) {
             revert LengthMismatch();
         }
 
         uint256 threshold = (_totalVotingPower * _consensusThreshold) / 100;
 
-        for (uint i = 0; i < eip712Transferes.length; i++) {
-            EIP712Transfer memory eip712Transfer = eip712Transferes[i];
+        for (uint i = 0; i < eip712Transfers.length; i++) {
+            EIP712Transfer memory eip712Transfer = eip712Transfers[i];
 
             EIP712TransferKey memory transferKey = EIP712TransferKey(
                 eip712Transfer.from,
@@ -1197,15 +1319,33 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
                 burnTransferNonces(i, eip712Transfer.to, eip712Transfer.nonces);
                 transferData.info.accepted = true;
 
-                _totalVotingPower -= eip712Transfer.amount;
-                _stakes[eip712Transfer.from].amount -= eip712Transfer.amount;
+                bool isTransferFromUnchained = eip712Transfer.from ==
+                    address(this);
+
+                _totalVotingPower -= isTransferFromUnchained
+                    ? 0
+                    : eip712Transfer.amount;
+
+                _stakes[eip712Transfer.from].amount -= isTransferFromUnchained
+                    ? 0
+                    : eip712Transfer.amount;
+
+                _lockedInUnchained -= isTransferFromUnchained
+                    ? eip712Transfer.amount
+                    : 0;
 
                 _token.safeTransfer(
                     transferData.info.to,
                     transferData.info.amount
                 );
 
-                for (uint256 n = 0; n < transferData.info.nftIds.length; n++) {
+                uint256 nftArrayLength = transferData.info.nftIds.length;
+
+                if (isTransferFromUnchained && nftArrayLength > 0) {
+                    revert Forbidden();
+                }
+
+                for (uint256 n = 0; n < nftArrayLength; n++) {
                     uint256 nftId = transferData.info.nftIds[n];
 
                     _nft.safeTransferFrom(
