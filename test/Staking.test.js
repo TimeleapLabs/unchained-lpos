@@ -68,14 +68,14 @@ const signEip712 = async (signer, domain, types, message) => {
   return ethers.Signature.from(signature);
 };
 
-describe("Staking", function () {
+describe("Staking", function() {
   let staking, token, nft, nftTracker;
   let owner, user1, user2, user3, user4, user5;
   let stakingAddr, tokenAddr, nftAddr, nftTrackerAddr;
   let user1bls, user2bls, user3bls, user4bls;
   let eip712domain;
 
-  beforeEach(async function () {
+  beforeEach(async function() {
     [owner, user1, user2, user3, user4, user5] = await ethers.getSigners();
 
     // Deploy Mock ERC20 token
@@ -150,11 +150,11 @@ describe("Staking", function () {
     await staking.connect(user4).setBlsAddress(user4bls);
   });
 
-  it("reports the correct consensus threshold", async function () {
+  it("reports the correct consensus threshold", async function() {
     expect(await staking.getConsensusThreshold()).to.equal(51);
   });
 
-  it("reports the correct total voting power", async function () {
+  it("reports the correct total voting power", async function() {
     // Stake tokens for each user
     for (const user of [user1, user2, user3, user4]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
@@ -168,7 +168,7 @@ describe("Staking", function () {
     );
   });
 
-  it("allows users to stake tokens and NFTs", async function () {
+  it("allows users to stake tokens and NFTs", async function() {
     await expect(
       staking.connect(user1).stake(60 * 60 * 24, ethers.parseUnits("500"), [1])
     ).to.emit(staking, "Staked");
@@ -180,7 +180,7 @@ describe("Staking", function () {
     expect(await nft.ownerOf(1)).to.equal(stakingAddr);
   });
 
-  it("allows extending the stake duration", async function () {
+  it("allows extending the stake duration", async function() {
     await staking
       .connect(user1)
       .stake(60 * 60 * 24, ethers.parseUnits("500"), [1]);
@@ -195,7 +195,7 @@ describe("Staking", function () {
     );
   });
 
-  it("allows users to unstake after lock period", async function () {
+  it("allows users to unstake after lock period", async function() {
     await staking.connect(user1).stake(1, ethers.parseUnits("500"), [1]);
 
     // Increase time to surpass the stake duration
@@ -211,26 +211,26 @@ describe("Staking", function () {
     expect(await nft.ownerOf(1)).to.equal(user1.address);
   });
 
-  it("rejects unstaking with zero stake", async function () {
+  it("rejects unstaking with zero stake", async function() {
     await expect(
       staking.connect(user1).unstake()
     ).to.be.revertedWithCustomError(staking, "StakeZero()");
   });
 
-  it("rejects setting setting bls address of another user", async function () {
+  it("rejects setting setting bls address of another user", async function() {
     await expect(
       staking.connect(user1).setBlsAddress(user2bls)
     ).to.be.revertedWithCustomError(staking, "AddressInUse()");
   });
 
-  it("rejects recovering the stake token", async function () {
+  it("rejects recovering the stake token", async function() {
     await staking.connect(user1).stake(1, ethers.parseUnits("500"), [1]);
     await expect(
       staking.connect(owner).recoverERC20(tokenAddr, owner.address, 100)
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
-  it("allows recovering the non-stake tokens", async function () {
+  it("allows recovering the non-stake tokens", async function() {
     await staking.connect(user1).stake(1, ethers.parseUnits("500"), [1]);
 
     // Deploy a mock ERC20 contract for testing
@@ -252,19 +252,19 @@ describe("Staking", function () {
     expect(recipientBalance).to.equal(ethers.parseUnits("100"));
   });
 
-  it("rejects staking with zero amount", async function () {
+  it("rejects staking with zero amount", async function() {
     await expect(
       staking.connect(user1).stake(60 * 60 * 24, 0, [])
     ).to.be.revertedWithCustomError(staking, "AmountZero()");
   });
 
-  it("rejects staking with zero duration", async function () {
+  it("rejects staking with zero duration", async function() {
     await expect(
       staking.connect(user1).stake(0, ethers.parseUnits("500"), [1])
     ).to.be.revertedWithCustomError(staking, "DurationZero()");
   });
 
-  it("rejects staking when already staked without unstaking", async function () {
+  it("rejects staking when already staked without unstaking", async function() {
     await staking
       .connect(user1)
       .stake(60 * 60 * 24, ethers.parseUnits("100"), [1]);
@@ -273,7 +273,7 @@ describe("Staking", function () {
     ).to.be.revertedWithCustomError(staking, "AlreadyStaked()");
   });
 
-  it("rejects unstaking before duration expires", async function () {
+  it("rejects unstaking before duration expires", async function() {
     await staking
       .connect(user1)
       .stake(60 * 60 * 24, ethers.parseUnits("500"), [1]);
@@ -284,7 +284,7 @@ describe("Staking", function () {
     ).to.be.revertedWithCustomError(staking, "NotUnlocked()");
   });
 
-  it("allows increasing the stake", async function () {
+  it("allows increasing the stake", async function() {
     await staking
       .connect(user1)
       .stake(60 * 60 * 24, ethers.parseUnits("500"), [1]);
@@ -297,7 +297,7 @@ describe("Staking", function () {
     expect(postIncreaseStake.nftIds.length).to.equal(2);
   });
 
-  it("rejects increasing the stake with zero amount", async function () {
+  it("rejects increasing the stake with zero amount", async function() {
     await staking
       .connect(user1)
       .stake(60 * 60 * 24, ethers.parseUnits("500"), [1]);
@@ -307,13 +307,13 @@ describe("Staking", function () {
     ).to.be.revertedWithCustomError(staking, "AmountZero()");
   });
 
-  it("rejects increasing non-existent stake", async function () {
+  it("rejects increasing non-existent stake", async function() {
     await expect(
       staking.connect(user1).increaseStake(ethers.parseUnits("500"), [1])
     ).to.be.revertedWithCustomError(staking, "StakeZero()");
   });
 
-  it("rejects extending the stake duration with zero duration", async function () {
+  it("rejects extending the stake duration with zero duration", async function() {
     await staking
       .connect(user1)
       .stake(60 * 60 * 24, ethers.parseUnits("500"), [1]);
@@ -323,19 +323,19 @@ describe("Staking", function () {
     ).to.be.revertedWithCustomError(staking, "DurationZero()");
   });
 
-  it("rejects extending the duration of non-existent stake", async function () {
+  it("rejects extending the duration of non-existent stake", async function() {
     await expect(
       staking.connect(user1).extend(60 * 60 * 24)
     ).to.be.revertedWithCustomError(staking, "StakeZero()");
   });
 
-  it("rejects staking if bls address is not set", async function () {
+  it("rejects staking if bls address is not set", async function() {
     await expect(
       staking.connect(user5).stake(60 * 60 * 24, ethers.parseUnits("500"), [1])
     ).to.be.revertedWithCustomError(staking, "BlsNotSet()");
   });
 
-  it("allows setting the contract parameters with majority consensus", async function () {
+  it("allows setting the contract parameters with majority consensus", async function() {
     // Stake tokens for each user
     for (const user of [user1, user2, user3, user4]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
@@ -405,7 +405,7 @@ describe("Staking", function () {
     );
   });
 
-  it("allows signing EIP712 setParam messages with the signer address instead of staker", async function () {
+  it("allows signing EIP712 setParam messages with the signer address instead of staker", async function() {
     // Stake tokens for each user
     for (const user of [user1, user2, user3, user4]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
@@ -508,7 +508,7 @@ describe("Staking", function () {
     );
   });
 
-  it("rejects setting the contract parameters with duplicate signatures", async function () {
+  it("rejects setting the contract parameters with duplicate signatures", async function() {
     // Stake tokens for each user
     for (const user of [user1, user2, user3, user4]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
@@ -557,7 +557,7 @@ describe("Staking", function () {
     expect(contractParams.expiration).to.not.equal(params.expiration);
   });
 
-  it("allows transfering tokens from staked users by consensus", async function () {
+  it("allows transfering tokens from staked users by consensus", async function() {
     for (const user of [user4, user2, user3]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
       await staking
@@ -630,7 +630,7 @@ describe("Staking", function () {
     expect(postTransfer).to.equal(preTransfer + ethers.parseUnits("100"));
   });
 
-  it("allows transfering tokens to Unchained", async function () {
+  it("allows transfering tokens to Unchained", async function() {
     const preTransfer = await token.balanceOf(stakingAddr);
     await staking.connect(user1).transferToUnchained(ethers.parseUnits("500"));
 
@@ -638,20 +638,20 @@ describe("Staking", function () {
     expect(postTransfer).to.equal(preTransfer + ethers.parseUnits("500"));
   });
 
-  it("rejects sending tokens to Unchained with no BLS address", async function () {
+  it("rejects sending tokens to Unchained with no BLS address", async function() {
     await expect(
       staking.connect(user5).transferToUnchained(ethers.parseUnits("500"))
     ).to.be.revertedWithCustomError(staking, "BlsNotSet()");
   });
 
-  it("reports the correct amount of tokens transferred to Unchained", async function () {
+  it("reports the correct amount of tokens transferred to Unchained", async function() {
     await staking.connect(user1).transferToUnchained(ethers.parseUnits("500"));
     expect(await staking.getTotalLockedInUnchained()).to.equal(
       ethers.parseUnits("500")
     );
   });
 
-  it("allows transfering tokens from the contract by consensus", async function () {
+  it("allows transfering tokens from the contract by consensus", async function() {
     for (const user of [user1, user2, user3, user4]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
       await staking
@@ -724,7 +724,7 @@ describe("Staking", function () {
     expect(postTransfer).to.equal(preTransfer + ethers.parseUnits("100"));
   });
 
-  it("rejects consensus transfers if signatures don't match the transfers length", async function () {
+  it("rejects consensus transfers if signatures don't match the transfers length", async function() {
     for (const user of [user1, user2, user3, user4]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
       await staking
@@ -770,13 +770,13 @@ describe("Staking", function () {
     ).to.be.revertedWithCustomError(staking, "LengthMismatch()");
   });
 
-  it("rejects transfering tokens to Unchained with zero amount", async function () {
+  it("rejects transfering tokens to Unchained with zero amount", async function() {
     await expect(
       staking.connect(user1).transferToUnchained(0)
     ).to.be.revertedWithCustomError(staking, "AmountZero()");
   });
 
-  it("allows slashing a staker with transfer out", async function () {
+  it("allows slashing a staker with transfer out", async function() {
     for (const user of [user1, user2, user3, user4]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
       await staking
@@ -820,7 +820,7 @@ describe("Staking", function () {
     expect(stake.amount).to.equal(ethers.parseUnits("400"));
   });
 
-  it("rejects transfering out with duplicated nonce", async function () {
+  it("rejects transfering out with duplicated nonce", async function() {
     for (const user of [user1, user2, user3]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
       await staking
@@ -898,7 +898,7 @@ describe("Staking", function () {
     ).to.be.revertedWithCustomError(staking, "NonceUsed(uint256,uint256)");
   });
 
-  it("allows setting a signer for a stake holder", async function () {
+  it("allows setting a signer for a stake holder", async function() {
     await staking
       .connect(user1)
       .stake(60 * 60 * 24, ethers.parseUnits("500"), []);
@@ -937,7 +937,7 @@ describe("Staking", function () {
     expect(stakerToSigner).to.equal(signer);
   });
 
-  it("allows getting user stake with bls address", async function () {
+  it("allows getting user stake with bls address", async function() {
     await staking
       .connect(user1)
       .stake(60 * 60 * 24, ethers.parseUnits("500"), []);
@@ -946,19 +946,19 @@ describe("Staking", function () {
     expect(user1Stake.amount).to.equal(ethers.parseUnits("500"));
   });
 
-  it("reverts if the NFT is not the expected one", async function () {
+  it("reverts if the NFT is not the expected one", async function() {
     await expect(
       staking.onERC721Received(user1.address, user2.address, 123, "0x")
     ).to.be.revertedWithCustomError(staking, "WrongNFT()");
   });
 
-  it("reverts if accepting NFT is forbidden", async function () {
+  it("reverts if accepting NFT is forbidden", async function() {
     await expect(
       nft.connect(user1).safeTransferFrom(user1.address, stakingAddr, 1)
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
-  it("allows setting nft price", async function () {
+  it("allows setting nft price", async function() {
     for (const user of [user2, user3, user4]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("50"));
       await staking
@@ -1019,7 +1019,7 @@ describe("Staking", function () {
     expect(hasRequested).to.equal(true);
   });
 
-  it("rejects set nft price with low voting power", async function () {
+  it("rejects set nft price with low voting power", async function() {
     for (const user of [user2, user3, user4]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("50"));
       await staking
@@ -1080,7 +1080,7 @@ describe("Staking", function () {
     expect(hasRequested).to.equal(true);
   });
 
-  it("reverts if signatures and setNftPrices length mismatch", async function () {
+  it("reverts if signatures and setNftPrices length mismatch", async function() {
     for (const user of [user2, user3, user4]) {
       await token.connect(user).approve(stakingAddr, ethers.parseUnits("50"));
       await staking
@@ -1135,7 +1135,7 @@ describe("Staking", function () {
     ).to.be.revertedWithCustomError(staking, "LengthMismatch()");
   });
 
-  it("reports the correct voting power of user", async function () {
+  it("reports the correct voting power of user", async function() {
     await token.connect(user1).approve(stakingAddr, ethers.parseUnits("200"));
     await staking
       .connect(user1)
@@ -1147,7 +1147,7 @@ describe("Staking", function () {
     expect(votingPowerOfUser).to.equal(ethers.parseUnits("200"));
   });
 
-  it("allows the owner to call the setPrices function on the nftTracker", async function () {
+  it("allows the owner to call the setPrices function on the nftTracker", async function() {
     const nftIds = [6, 7];
     const prices = [ethers.parseUnits("6"), ethers.parseUnits("7")];
 
@@ -1162,7 +1162,7 @@ describe("Staking", function () {
     expect(priceOfNft2).to.equal(ethers.parseUnits("7"));
   });
 
-  it("reverts if nftIds and prices length mismatch", async function () {
+  it("reverts if nftIds and prices length mismatch", async function() {
     const nftIds = [6, 7];
     const prices = [ethers.parseUnits("6")];
 
@@ -1173,5 +1173,106 @@ describe("Staking", function () {
     await expect(
       newNftTracker["setPrices(uint256[],uint256[])"](nftIds, prices)
     ).to.be.revertedWithCustomError(staking, "LengthMismatch()");
+  });
+
+  // Simulations of possible Unchained scenarios
+  // 1. Slash a staker for misbheaviour
+
+  it("allows slashing a staker for misbehaviour", async function() {
+    // We have 4 different validators on the network
+    for (const user of [user1, user2, user3, user4]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+    // Sign EIP712 message for Transfer (Slash)
+    const messages = [];
+    const signatures = [];
+    const transfer = {
+      from: user4.address, // The staker to be slashed
+      to: owner.address, // The collector
+      nftIds: [],
+      amount: ethers.parseUnits("100"), // The amount to be slashed (Based on the severity of the misbehaviour)
+      nonces: [0],
+    };
+    // All validators now attest to the misbehaviour
+    for (const user of [user1, user2, user3]) {
+      const message = {
+        signer: user.address,
+        ...transfer,
+      };
+      const signed = await signEip712(
+        user,
+        eip712domain,
+        { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
+        message
+      );
+      messages.push(message);
+      signatures.push(signed);
+    }
+    // Anyone can call the transfer function to slash the staker
+    await staking.connect(owner).transfer(messages, signatures);
+    const stake = await staking["getStake(address)"](user4.address);
+    // The stake should be reduced by the amount slashed
+    expect(stake.amount).to.equal(ethers.parseUnits("400"));
+  });
+
+  // 2. Send gas fees from a consumer to a validator
+  // From the tokens transferred to the contract by the consumer,
+  // the contract can send the gas fees to the validators
+  it("allows sending gas fees to validators", async function() {
+    // We have 4 different validators on the network
+    for (const user of [user1, user2, user3, user4]) {
+      await token.connect(user)
+        .approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+    // We have one consumer on the network with tokens transferred to Unchained
+    // These tokens are locked in the contract and managed by the Unchained
+    // consensus protocol (validator votes)
+    const user5bls = randomBytes(20);
+    await staking.connect(user5).setBlsAddress(user5bls);
+    // Fund the consumer account
+    await token.transfer(user5.address, ethers.parseUnits("500"));
+    // Transfer the tokens to Unchained
+    await token.connect(user5)
+      .approve(stakingAddr, ethers.parseUnits("500"));
+    await staking.connect(user5)
+      .transferToUnchained(ethers.parseUnits("500"));
+    // Sign EIP712 message for Transfer (Gas Fees)
+    const messages = [];
+    const signatures = [];
+    const transfer = {
+      from: stakingAddr, // Fee/Consumer tokens are locked in the contract
+      to: user4.address, // The validator to receive the gas fees
+      nftIds: [],
+      amount: ethers.parseUnits("100"), // The amount to be sent as gas fees
+      nonces: [0],
+    };
+    // All validators now attest to the gas fees
+    for (const user of [user1, user2, user3]) {
+      const message = {
+        signer: user.address,
+        ...transfer,
+      };
+      const signed = await signEip712(
+        user,
+        eip712domain,
+        { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
+        message
+      );
+      messages.push(message);
+      signatures.push(signed);
+    }
+    // Keep a record of the validator balance before the transfer
+    const preTransfer = await token.balanceOf(user4.address);
+    // Anyone can call the transfer function to send the gas fees
+    await staking.connect(owner).transfer(messages, signatures);
+    // The validator should receive the gas fees
+    const postTransfer = await token.balanceOf(user4.address);
+    expect(postTransfer).to.equal(preTransfer + ethers.parseUnits("100"));
   });
 });
