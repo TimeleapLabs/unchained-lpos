@@ -1042,9 +1042,9 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     /**
-     * @dev Verifies the authenticity of a transfer request using EIP-712 typed
+     * @dev Verifies the authenticity of a setParams request using EIP-712 typed
      * data signing.
-     * @param eip712SetParam The EIP712Transfer structure containing the
+     * @param eip712SetParam The EIP712SetParams structure containing the
      * transfer request details.
      * @param signature The signature to verify the transfer request.
      * @return True if the signature is valid and matches the transfer request
@@ -1070,9 +1070,9 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
     }
 
     /**
-     * @dev Verifies the authenticity of a transfer request using EIP-712 typed
+     * @dev Verifies the authenticity of a setNftPrice request using EIP-712 typed
      * data signing.
-     * @param eip712SetNftPrice The EIP712Transfer structure containing the
+     * @param eip712SetNftPrice The EIP712SetNftPrice structure containing the
      * transfer request details.
      * @param signature The signature to verify the transfer request.
      * @return True if the signature is valid and matches the transfer request
