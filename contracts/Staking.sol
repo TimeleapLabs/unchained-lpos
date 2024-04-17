@@ -949,10 +949,8 @@ contract UnchainedStaking is Ownable, IERC721Receiver, ReentrancyGuard {
         _stakes[_msgSender()].amount = 0;
         _stakes[_msgSender()].nftIds = new uint256[](0);
 
-        if (amount > 0) {
-            _totalVotingPower -= amount;
-            _token.safeTransfer(_msgSender(), amount);
-        }
+        _totalVotingPower -= amount;
+        _token.safeTransfer(_msgSender(), amount);
 
         for (uint256 i = 0; i < nftIds.length; i++) {
             _nft.safeTransferFrom(address(this), _msgSender(), nftIds[i], "");
