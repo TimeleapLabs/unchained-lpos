@@ -481,6 +481,233 @@ describe("Staking", function () {
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
+  it("reverts setParams if signature is invalid", async function () {
+    // Stake tokens for each user
+    for (const user of [user1, user2, user3, user4]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    // Sign EIP712 message for SetParams
+    const messages = [];
+    const signatures = [];
+
+    const params = {
+      token: tokenAddr,
+      nft: nftAddr,
+      nftTracker: nftTrackerAddr,
+      threshold: 60,
+      expiration: 60 * 60 * 24 * 7,
+      collector: owner.address,
+      nonce: 0,
+    };
+
+    const message = {
+      requester: user2.address,
+      ...params,
+    };
+
+    const signed = await signEip712(
+      user3,
+      eip712domain,
+      { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
+      message,
+    );
+
+    messages.push(message);
+    signatures.push(signed);
+
+    // Set the parameters
+    await expect(
+      staking.connect(owner).setParams(messages, signatures),
+    ).to.be.revertedWithCustomError(staking, "InvalidSignature(uint)");
+  });
+
+  it("rejects consensus setParams if signatures don't match the setParams length", async function () {
+    // Stake tokens for each user
+    for (const user of [user1, user2, user3, user4]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    // Sign EIP712 message for SetParams
+    const messages = [];
+    const signatures = [];
+
+    const params = {
+      token: tokenAddr,
+      nft: nftAddr,
+      nftTracker: nftTrackerAddr,
+      threshold: 60,
+      expiration: 60 * 60 * 24 * 7,
+      collector: owner.address,
+      nonce: 0,
+    };
+
+    for (const user of [user1, user2, user3]) {
+      const message = {
+        requester: user.address,
+        ...params,
+      };
+
+      const signed = await signEip712(
+        user,
+        eip712domain,
+        { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
+        message,
+      );
+
+      messages.push(message);
+      signatures.push(signed);
+    }
+
+    // Set the parameters
+    await expect(
+      staking.connect(owner).setParams(messages, signatures.slice(1)),
+    ).to.be.revertedWithCustomError(staking, "LengthMismatch()");
+  });
+
+  it("reverts setParams signer has zero voting power", async function () {
+    // Stake tokens for each user
+    for (const user of [user1, user2]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    // Sign EIP712 message for SetParams
+    const messages = [];
+    const signatures = [];
+
+    const params = {
+      token: tokenAddr,
+      nft: nftAddr,
+      nftTracker: nftTrackerAddr,
+      threshold: 60,
+      expiration: 60 * 60 * 24 * 7,
+      collector: owner.address,
+      nonce: 0,
+    };
+
+    const message = {
+      requester: user3.address,
+      ...params,
+    };
+
+    const signed = await signEip712(
+      user3,
+      eip712domain,
+      { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
+      message,
+    );
+
+    messages.push(message);
+    signatures.push(signed);
+
+    // Set the parameters
+    await expect(
+      staking.connect(owner).setParams(messages, signatures),
+    ).to.be.revertedWithCustomError(staking, "VotingPowerZero(uint)");
+  });
+
+  it("reverts setParams if stake expires before vote", async function () {
+    // Stake tokens for each user
+    for (const user of [user1, user2]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    // Sign EIP712 message for SetParams
+    const messages = [];
+    const signatures = [];
+
+    const params = {
+      token: tokenAddr,
+      nft: nftAddr,
+      nftTracker: nftTrackerAddr,
+      threshold: 60,
+      expiration: 60 * 60 * 24 * 7,
+      collector: owner.address,
+      nonce: 0,
+    };
+
+    await time.increase(60 * 60 * 24 * 364.5);
+    const message = {
+      requester: user2.address,
+      ...params,
+    };
+
+    const signed = await signEip712(
+      user2,
+      eip712domain,
+      { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
+      message,
+    );
+
+    messages.push(message);
+    signatures.push(signed);
+
+    // Set the parameters
+    await expect(
+      staking.connect(owner).setParams(messages, signatures),
+    ).to.be.revertedWithCustomError(staking, "StakeExpiresBeforeVote(uint)");
+  });
+
+  it("reverts setParams if topic expired", async function () {
+    // Stake tokens for each user
+    for (const user of [user1, user2]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    // Sign EIP712 message for SetParams
+    const messages = [];
+    const signatures = [];
+
+    const params = {
+      token: tokenAddr,
+      nft: nftAddr,
+      nftTracker: nftTrackerAddr,
+      threshold: 60,
+      expiration: 60 * 60 * 24 * 7,
+      collector: owner.address,
+      nonce: 0,
+    };
+
+    const message = {
+      requester: user2.address,
+      ...params,
+    };
+
+    const signed = await signEip712(
+      user2,
+      eip712domain,
+      { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
+      message,
+    );
+
+    messages.push(message);
+    signatures.push(signed);
+
+    await staking.connect(owner).setParams(messages, signatures);
+
+    //go forward in time for 2 days
+    await time.increase(2 * 24 * 60 * 60);
+    // Set the parameters
+    await expect(
+      staking.connect(owner).setParams(messages, signatures),
+    ).to.be.revertedWithCustomError(staking, "TopicExpired(uint)");
+  });
+
   it("allows signing EIP712 transfer messages with the signer address instead of staker", async function () {
     // Stake tokens for each user
     for (const user of [user1, user2, user3, user4]) {
