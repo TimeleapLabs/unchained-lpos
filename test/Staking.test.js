@@ -1203,8 +1203,6 @@ describe("Staking", function () {
       nonces: [0],
     };
 
-    await time.increase(60 * 60 * 24 * 364.5);
-
     // Sign EIP712 message for Transfer
     const messages = [];
     const signatures = [];
@@ -1998,6 +1996,183 @@ describe("Staking", function () {
     await expect(
       staking.connect(user1).setNftPrices(nftprices, signatures),
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
+  });
+
+  it("reverts setNftPrices signer has zero voting power", async function () {
+    for (const user of [user2, user3, user4]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("50"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("50"), []);
+    }
+    await staking
+      .connect(user1)
+      .stake(25 * 60 * 60 * 24, ethers.parseUnits("0"), [1, 2]);
+
+    // Sign EIP712 message for setNftPrice
+    const nftprices = [];
+    const signatures = [];
+
+    const nftSetPrice = {
+      requester: user1.address,
+      nftId: 7,
+      price: ethers.parseUnits("5"),
+      nonce: 0,
+    };
+
+    const nftprice = {
+      signer: user1.address,
+      ...nftSetPrice,
+    };
+
+    const signed = await signEip712(
+      user1,
+      eip712domain,
+      { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
+      nftprice,
+    );
+
+    nftprices.push(nftprice);
+    signatures.push(signed);
+
+    await expect(
+      staking.connect(user1).setNftPrices(nftprices, signatures),
+    ).to.be.revertedWithCustomError(staking, "VotingPowerZero(uint)");
+  });
+
+  it("reverts setNftPrices if signature is invalid", async function () {
+    for (const user of [user2, user3, user4]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("50"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("50"), []);
+    }
+    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("200"));
+    await staking
+      .connect(user1)
+      .stake(25 * 60 * 60 * 24, ethers.parseUnits("200"), [1, 2]);
+
+    // Sign EIP712 message for setNftPrice
+    const nftprices = [];
+    const signatures = [];
+
+    const nftSetPrice = {
+      requester: user1.address,
+      nftId: 7,
+      price: ethers.parseUnits("5"),
+      nonce: 0,
+    };
+
+    const nftprice = {
+      signer: user5.address,
+      ...nftSetPrice,
+    };
+
+    const signed = await signEip712(
+      user2,
+      eip712domain,
+      { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
+      nftprice,
+    );
+
+    nftprices.push(nftprice);
+    signatures.push(signed);
+
+    await expect(
+      staking.connect(user1).setNftPrices(nftprices, signatures),
+    ).to.be.revertedWithCustomError(staking, "InvalidSignature(uint)");
+  });
+
+  it("reverts setNftPrices if stake expires before vote", async function () {
+    for (const user of [user2, user3, user4]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("50"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("50"), []);
+    }
+    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("200"));
+    await staking
+      .connect(user1)
+      .stake(25 * 60 * 60 * 24, ethers.parseUnits("200"), [1, 2]);
+
+    // Sign EIP712 message for setNftPrice
+    const nftprices = [];
+    const signatures = [];
+
+    const nftSetPrice = {
+      requester: user1.address,
+      nftId: 7,
+      price: ethers.parseUnits("5"),
+      nonce: 0,
+    };
+
+    await time.increase(60 * 60 * 24 * 364.5);
+
+    const nftprice = {
+      signer: user1.address,
+      ...nftSetPrice,
+    };
+
+    const signed = await signEip712(
+      user1,
+      eip712domain,
+      { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
+      nftprice,
+    );
+
+    nftprices.push(nftprice);
+    signatures.push(signed);
+
+    await expect(
+      staking.connect(user1).setNftPrices(nftprices, signatures),
+    ).to.be.revertedWithCustomError(staking, "StakeExpiresBeforeVote(uint)");
+  });
+
+  it("reverts setNftPrices if topic expired", async function () {
+    for (const user of [user2, user3, user4]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("50"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("50"), []);
+    }
+    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("200"));
+    await staking
+      .connect(user1)
+      .stake(25 * 60 * 60 * 24, ethers.parseUnits("200"), [1, 2]);
+
+    // Sign EIP712 message for setNftPrice
+    const nftprices = [];
+    const signatures = [];
+
+    const nftSetPrice = {
+      requester: user1.address,
+      nftId: 7,
+      price: ethers.parseUnits("5"),
+      nonce: 0,
+    };
+
+    const nftprice = {
+      signer: user1.address,
+      ...nftSetPrice,
+    };
+
+    const signed = await signEip712(
+      user1,
+      eip712domain,
+      { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
+      nftprice,
+    );
+
+    nftprices.push(nftprice);
+    signatures.push(signed);
+
+    await staking.connect(user1).setNftPrices(nftprices, signatures);
+    //go forward in time for 2 days
+    await time.increase(2 * 24 * 60 * 60);
+
+    await expect(
+      staking.connect(user1).setNftPrices(nftprices, signatures),
+    ).to.be.revertedWithCustomError(staking, "TopicExpired(uint)");
   });
 
   it("reports the correct voting power of user", async function () {
