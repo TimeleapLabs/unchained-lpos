@@ -1,6 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { randomBytes } = require("crypto");
+const { time } = require("@nomicfoundation/hardhat-network-helpers");
 
 const zipIndex = (arr) => arr.map((item, i) => [item, i]);
 
@@ -477,7 +478,7 @@ describe("Staking", function () {
     // Set the parameters
     await expect(
       staking.connect(owner).setParams(messages, signatures),
-    ).to.revertedWithCustomError(staking, "Forbidden()");
+    ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
   it("allows signing EIP712 transfer messages with the signer address instead of staker", async function () {
@@ -834,7 +835,9 @@ describe("Staking", function () {
     }
 
     await token.connect(user1).approve(stakingAddr, ethers.parseUnits("500"));
-    await staking.connect(user1).stake(3600, ethers.parseUnits("500"), [1]);
+    await staking
+      .connect(user1)
+      .stake(3600, ethers.parseUnits("500"), [2, 3, 1]);
 
     // Sign EIP712 message for Transfer
     const messages = [];
@@ -866,7 +869,8 @@ describe("Staking", function () {
     }
 
     // Transfer the tokens
-    const preTransfer = await token.balanceOf(user4.address);
+    const preTransferTo = await token.balanceOf(user4.address);
+    const preTransferFrom = await staking["getStake(address)"](user1.address);
     await staking.connect(owner).transfer(messages, signatures);
 
     // Transfer data should be available
@@ -895,7 +899,244 @@ describe("Staking", function () {
 
     // Tokens should be available in the user's account
     const postTransfer = await token.balanceOf(user4.address);
-    expect(postTransfer).to.equal(preTransfer + ethers.parseUnits("100"));
+    expect(postTransfer).to.equal(preTransferTo + ethers.parseUnits("100"));
+
+    // Should not transfer the amount
+    await staking.connect(owner).transfer(messages, signatures);
+    expect(slashData.accepted).to.equal(true);
+    const postTransfersFrom = await staking["getStake(address)"](user1.address);
+    expect(postTransfersFrom.amount).to.equal(
+      preTransferFrom.amount - ethers.parseUnits("100"),
+    );
+  });
+
+  it("reverts transfer if stake expires before vote", async function () {
+    for (const user of [user4, user2, user3]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("500"));
+    await staking.connect(user1).stake(3600, ethers.parseUnits("500"), [1]);
+
+    const transfer = {
+      from: user1.address,
+      to: user4.address,
+      nftIds: [1],
+      amount: ethers.parseUnits("100"),
+      nonces: [0],
+    };
+
+    await time.increase(60 * 60 * 24 * 364.5);
+
+    // Sign EIP712 message for Transfer
+    const messages = [];
+    const signatures = [];
+
+    for (const user of [user4, user2, user3]) {
+      const message = {
+        signer: user.address,
+        ...transfer,
+      };
+
+      const signed = await signEip712(
+        user,
+        eip712domain,
+        { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
+        message,
+      );
+
+      messages.push(message);
+      signatures.push(signed);
+    }
+
+    await expect(
+      staking.connect(owner).transfer(messages, signatures),
+    ).to.be.revertedWithCustomError(staking, "StakeExpiresBeforeVote(uint)");
+  });
+
+  it("reverts transfer signer has zero voting power", async function () {
+    for (const user of [user4, user2, user3]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("500"));
+    await staking.connect(user1).stake(3600, ethers.parseUnits("500"), [1]);
+
+    const transfer = {
+      from: user1.address,
+      to: user4.address,
+      nftIds: [1],
+      amount: ethers.parseUnits("100"),
+      nonces: [0],
+    };
+
+    await time.increase(60 * 60 * 24 * 364.5);
+
+    // Sign EIP712 message for Transfer
+    const messages = [];
+    const signatures = [];
+
+    const message = {
+      signer: user5.address,
+      ...transfer,
+    };
+
+    const signed = await signEip712(
+      user5,
+      eip712domain,
+      { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
+      message,
+    );
+
+    messages.push(message);
+    signatures.push(signed);
+
+    await expect(
+      staking.connect(owner).transfer(messages, signatures),
+    ).to.be.revertedWithCustomError(staking, "VotingPowerZero(uint)");
+  });
+
+  it("reverts transfer if signature is invalid", async function () {
+    for (const user of [user4, user2, user3]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("500"));
+    await staking.connect(user1).stake(3600, ethers.parseUnits("500"), [1]);
+
+    const transfer = {
+      from: user1.address,
+      to: user4.address,
+      nftIds: [1],
+      amount: ethers.parseUnits("100"),
+      nonces: [0],
+    };
+
+    // Sign EIP712 message for Transfer
+    const messages = [];
+    const signatures = [];
+
+    const message = {
+      signer: user2.address,
+      ...transfer,
+    };
+
+    const signed = await signEip712(
+      user4,
+      eip712domain,
+      { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
+      message,
+    );
+
+    messages.push(message);
+    signatures.push(signed);
+
+    await expect(
+      staking.connect(owner).transfer(messages, signatures),
+    ).to.be.revertedWithCustomError(staking, "InvalidSignature(uint)");
+  });
+
+  it("reverts transfer from unchained with NFT's", async function () {
+    for (const user of [user1, user2, user3, user4]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("500"));
+    await staking.connect(user1).transferToUnchained(ethers.parseUnits("500"));
+
+    // Sign EIP712 message for Transfer
+    const messages = [];
+    const signatures = [];
+
+    const transfer = {
+      from: stakingAddr,
+      to: user4.address,
+      nftIds: [1],
+      amount: ethers.parseUnits("100"),
+      nonces: [0],
+    };
+
+    for (const user of [user1, user2, user3]) {
+      const message = {
+        signer: user.address,
+        ...transfer,
+      };
+
+      const signed = await signEip712(
+        user,
+        eip712domain,
+        { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
+        message,
+      );
+
+      messages.push(message);
+      signatures.push(signed);
+    }
+
+    // Transfer the tokens
+    await expect(
+      staking.connect(owner).transfer(messages, signatures),
+    ).to.be.revertedWithCustomError(staking, "Forbidden()");
+  });
+
+  it("reverts transfer if topic expired", async function () {
+    for (const user of [user4, user2, user3]) {
+      await token.connect(user).approve(stakingAddr, ethers.parseUnits("500"));
+      await staking
+        .connect(user)
+        .stake(25 * 60 * 60 * 24, ethers.parseUnits("500"), []);
+    }
+
+    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("500"));
+    await staking.connect(user1).stake(3600, ethers.parseUnits("500"), [1]);
+
+    // Sign EIP712 message for fail Transfer
+    const messages = [];
+    const signatures = [];
+
+    const transfer = {
+      from: user1.address,
+      to: user4.address,
+      nftIds: [1],
+      amount: ethers.parseUnits("100"),
+      nonces: [0],
+    };
+    const message = {
+      signer: user2.address,
+      ...transfer,
+    };
+
+    const signed = await signEip712(
+      user2,
+      eip712domain,
+      { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
+      message,
+    );
+
+    messages.push(message);
+    signatures.push(signed);
+
+    // Transfer the tokens
+    await staking.connect(owner).transfer(messages, signatures);
+
+    //go forward in time for 2 days
+    await time.increase(2 * 24 * 60 * 60);
+
+    await expect(
+      staking.connect(owner).transfer(messages, signatures),
+    ).to.be.revertedWithCustomError(staking, "TopicExpired(uint)");
   });
 
   it("reverts transfer if consensus lock is not reached", async function () {
@@ -943,7 +1184,7 @@ describe("Staking", function () {
     const preTransfer = await token.balanceOf(user4.address);
     await expect(
       staking.connect(owner).transfer(messages, signatures),
-    ).to.revertedWithCustomError(staking, "Forbidden()");
+    ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
   it("allows transfering tokens to Unchained", async function () {
