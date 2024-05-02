@@ -104,28 +104,6 @@ function getConsensusThreshold() external view returns (uint256)
 |---|---|---|
 | _0 | uint256 | The transfering threshold as a percentage of total voting power. |
 
-### getNftPrice
-
-```solidity
-function getNftPrice(uint256 nftId) external view returns (uint256)
-```
-
-
-
-*Retrieves the current NFT price for a specific NFT ID. This function returns the current price of the NFT as set by the NFT tracker contract.*
-
-#### Parameters
-
-| Name | Type | Description |
-|---|---|---|
-| nftId | uint256 | The ID of the NFT to query the price for. |
-
-#### Returns
-
-| Name | Type | Description |
-|---|---|---|
-| _0 | uint256 | The current price of the NFT. |
-
 ### getParams
 
 ```solidity
@@ -142,6 +120,28 @@ function getParams() external view returns (struct UnchainedStaking.ParamsInfo)
 | Name | Type | Description |
 |---|---|---|
 | _0 | UnchainedStaking.ParamsInfo | ParamsInfo A struct containing the current contract parameters. |
+
+### getPrice
+
+```solidity
+function getPrice(uint256 nftId) external view returns (uint256)
+```
+
+
+
+*Retrieves the current NFT price for a specific NFT ID. This function returns the current price of the NFT.*
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| nftId | uint256 | The ID of the NFT to query the price for. |
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | uint256 | The current price of the NFT. |
 
 ### getRequestedSetNftPrice
 
@@ -784,7 +784,7 @@ event OwnershipTransferred(address indexed previousOwner, address indexed newOwn
 ### ParamsChanged
 
 ```solidity
-event ParamsChanged(address token, address nft, address nftTracker, uint256 threshold, uint256 expiration, uint256 voted, uint256 nonce)
+event ParamsChanged(address token, address nft, uint256 threshold, uint256 expiration, uint256 voted, uint256 nonce)
 ```
 
 
@@ -797,7 +797,6 @@ event ParamsChanged(address token, address nft, address nftTracker, uint256 thre
 |---|---|---|
 | token  | address | The new token address. |
 | nft  | address | The new NFT address. |
-| nftTracker  | address | The new NFT tracker address. |
 | threshold  | uint256 | The new threshold value. |
 | expiration  | uint256 | The new expiration time. |
 | voted  | uint256 | The total voting power that voted. |

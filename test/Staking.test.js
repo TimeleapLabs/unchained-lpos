@@ -34,7 +34,6 @@ const EIP712_TYPES = {
     { name: "requester", type: "address" },
     { name: "token", type: "address" },
     { name: "nft", type: "address" },
-    { name: "nftTracker", type: "address" },
     { name: "threshold", type: "uint256" },
     { name: "expiration", type: "uint256" },
     { name: "nonce", type: "uint256" },
@@ -42,7 +41,6 @@ const EIP712_TYPES = {
   EIP712SetParamsKey: [
     { name: "token", type: "address" },
     { name: "nft", type: "address" },
-    { name: "nftTracker", type: "address" },
     { name: "threshold", type: "uint256" },
     { name: "expiration", type: "uint256" },
     { name: "nonce", type: "uint256" },
@@ -70,9 +68,9 @@ const signEip712 = async (signer, domain, types, message) => {
 };
 
 describe("Staking", function () {
-  let staking, token, nft, nftTracker;
+  let staking, token, nft;
   let owner, user1, user2, user3, user4, user5;
-  let stakingAddr, tokenAddr, nftAddr, nftTrackerAddr;
+  let stakingAddr, tokenAddr, nftAddr;
   let user1bls, user2bls, user3bls, user4bls;
   let eip712domain;
 
@@ -90,27 +88,20 @@ describe("Staking", function () {
     // Mint NFTs
     await nft.mint(0, 100);
 
-    //Deploy Mock NFT tracker
-    const NFTTracker = await ethers.getContractFactory("NFTTracker");
-    nftTracker = await NFTTracker.deploy();
-
     tokenAddr = await token.getAddress();
     nftAddr = await nft.getAddress();
-    nftTrackerAddr = await nftTracker.getAddress();
 
     // Deploy the Staking contract
     const Staking = await ethers.getContractFactory("UnchainedStaking");
     staking = await Staking.deploy(
       tokenAddr,
       nftAddr,
-      nftTrackerAddr,
       consensusLock,
       "Unchained",
-      "1",
+      "1"
     );
 
     stakingAddr = await staking.getAddress();
-    await nftTracker.transferOwnership(stakingAddr);
 
     eip712domain = {
       name: "Unchained",
@@ -169,18 +160,18 @@ describe("Staking", function () {
     }
 
     expect(await staking.getTotalVotingPower()).to.equal(
-      ethers.parseUnits("2000"),
+      ethers.parseUnits("2000")
     );
   });
 
   it("allows users to stake tokens and NFTs", async function () {
     await expect(
-      staking.connect(user1).stake(60 * 60 * 24, ethers.parseUnits("500"), [1]),
+      staking.connect(user1).stake(60 * 60 * 24, ethers.parseUnits("500"), [1])
     ).to.emit(staking, "Staked");
 
     // Check balances and ownership
     expect(await token.balanceOf(stakingAddr)).to.equal(
-      ethers.parseUnits("500"),
+      ethers.parseUnits("500")
     );
     expect(await nft.ownerOf(1)).to.equal(stakingAddr);
   });
@@ -188,7 +179,7 @@ describe("Staking", function () {
   it("allows users to stake NFTs only", async function () {
     await expect(staking.connect(user1).stake(60 * 60 * 24, 0, [1])).to.emit(
       staking,
-      "Staked",
+      "Staked"
     );
 
     // Check balances (to be zero) and ownership
@@ -207,7 +198,7 @@ describe("Staking", function () {
     const postExtendStake = await staking["getStake(address)"](user1.address);
 
     expect(postExtendStake.unlock).to.equal(
-      preExtendStake.unlock + 60n * 60n * 24n * 7n,
+      preExtendStake.unlock + 60n * 60n * 24n * 7n
     );
   });
 
@@ -222,27 +213,27 @@ describe("Staking", function () {
 
     // Check balances and ownership
     expect(await token.balanceOf(user1.address)).to.equal(
-      ethers.parseUnits("100000"),
+      ethers.parseUnits("100000")
     );
     expect(await nft.ownerOf(1)).to.equal(user1.address);
   });
 
   it("rejects unstaking with zero stake", async function () {
     await expect(
-      staking.connect(user1).unstake(),
+      staking.connect(user1).unstake()
     ).to.be.revertedWithCustomError(staking, "StakeZero()");
   });
 
   it("rejects setting setting bls address of another user", async function () {
     await expect(
-      staking.connect(user1).setBlsAddress(user2bls),
+      staking.connect(user1).setBlsAddress(user2bls)
     ).to.be.revertedWithCustomError(staking, "AddressInUse()");
   });
 
   it("rejects recovering the stake token", async function () {
     await staking.connect(user1).stake(1, ethers.parseUnits("500"), [1]);
     await expect(
-      staking.connect(owner).recoverERC20(tokenAddr, owner.address, 100),
+      staking.connect(owner).recoverERC20(tokenAddr, owner.address, 100)
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
@@ -270,13 +261,13 @@ describe("Staking", function () {
 
   it("rejects staking with zero amount", async function () {
     await expect(
-      staking.connect(user1).stake(60 * 60 * 24, 0, []),
+      staking.connect(user1).stake(60 * 60 * 24, 0, [])
     ).to.be.revertedWithCustomError(staking, "AmountZero()");
   });
 
   it("rejects staking with zero duration", async function () {
     await expect(
-      staking.connect(user1).stake(0, ethers.parseUnits("500"), [1]),
+      staking.connect(user1).stake(0, ethers.parseUnits("500"), [1])
     ).to.be.revertedWithCustomError(staking, "DurationZero()");
   });
 
@@ -285,7 +276,7 @@ describe("Staking", function () {
       .connect(user1)
       .stake(60 * 60 * 24, ethers.parseUnits("100"), [1]);
     await expect(
-      staking.connect(user1).stake(60 * 60 * 24, ethers.parseUnits("100"), [2]),
+      staking.connect(user1).stake(60 * 60 * 24, ethers.parseUnits("100"), [2])
     ).to.be.revertedWithCustomError(staking, "AlreadyStaked()");
   });
 
@@ -296,7 +287,7 @@ describe("Staking", function () {
 
     // Attempt to unstake immediately
     await expect(
-      staking.connect(user1).unstake(),
+      staking.connect(user1).unstake()
     ).to.be.revertedWithCustomError(staking, "NotUnlocked()");
   });
 
@@ -332,13 +323,13 @@ describe("Staking", function () {
       .stake(60 * 60 * 24, ethers.parseUnits("500"), [1]);
 
     await expect(
-      staking.connect(user1).increaseStake(0, []),
+      staking.connect(user1).increaseStake(0, [])
     ).to.be.revertedWithCustomError(staking, "AmountZero()");
   });
 
   it("rejects increasing non-existent stake", async function () {
     await expect(
-      staking.connect(user1).increaseStake(ethers.parseUnits("500"), [1]),
+      staking.connect(user1).increaseStake(ethers.parseUnits("500"), [1])
     ).to.be.revertedWithCustomError(staking, "StakeZero()");
   });
 
@@ -348,19 +339,19 @@ describe("Staking", function () {
       .stake(60 * 60 * 24, ethers.parseUnits("500"), [1]);
 
     await expect(
-      staking.connect(user1).extend(0),
+      staking.connect(user1).extend(0)
     ).to.be.revertedWithCustomError(staking, "DurationZero()");
   });
 
   it("rejects extending the duration of non-existent stake", async function () {
     await expect(
-      staking.connect(user1).extend(60 * 60 * 24),
+      staking.connect(user1).extend(60 * 60 * 24)
     ).to.be.revertedWithCustomError(staking, "StakeZero()");
   });
 
   it("rejects staking if bls address is not set", async function () {
     await expect(
-      staking.connect(user5).stake(60 * 60 * 24, ethers.parseUnits("500"), [1]),
+      staking.connect(user5).stake(60 * 60 * 24, ethers.parseUnits("500"), [1])
     ).to.be.revertedWithCustomError(staking, "BlsNotSet()");
   });
 
@@ -380,7 +371,6 @@ describe("Staking", function () {
     const params = {
       token: tokenAddr,
       nft: nftAddr,
-      nftTracker: nftTrackerAddr,
       threshold: 60,
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
@@ -397,7 +387,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
-        message,
+        message
       );
 
       messages.push(message);
@@ -421,16 +411,16 @@ describe("Staking", function () {
 
     // getRequestedSetParams reports correct values
     expect(await staking.getRequestedSetParams(params, user1.address)).to.equal(
-      true,
+      true
     );
     expect(await staking.getRequestedSetParams(params, user2.address)).to.equal(
-      true,
+      true
     );
     expect(await staking.getRequestedSetParams(params, user3.address)).to.equal(
-      true,
+      true
     );
     expect(await staking.getRequestedSetParams(params, user4.address)).to.equal(
-      false,
+      false
     );
   });
 
@@ -451,7 +441,6 @@ describe("Staking", function () {
     const params = {
       token: tokenAddr,
       nft: nftAddr,
-      nftTracker: nftTrackerAddr,
       threshold: 60,
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
@@ -468,7 +457,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
-        message,
+        message
       );
 
       messages.push(message);
@@ -477,7 +466,7 @@ describe("Staking", function () {
 
     // Set the parameters
     await expect(
-      staking.connect(owner).setParams(messages, signatures),
+      staking.connect(owner).setParams(messages, signatures)
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
@@ -497,7 +486,6 @@ describe("Staking", function () {
     const params = {
       token: tokenAddr,
       nft: nftAddr,
-      nftTracker: nftTrackerAddr,
       threshold: 60,
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
@@ -513,7 +501,7 @@ describe("Staking", function () {
       user3,
       eip712domain,
       { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
-      message,
+      message
     );
 
     messages.push(message);
@@ -521,7 +509,7 @@ describe("Staking", function () {
 
     // Set the parameters
     await expect(
-      staking.connect(owner).setParams(messages, signatures),
+      staking.connect(owner).setParams(messages, signatures)
     ).to.be.revertedWithCustomError(staking, "InvalidSignature(uint)");
   });
 
@@ -541,7 +529,6 @@ describe("Staking", function () {
     const params = {
       token: tokenAddr,
       nft: nftAddr,
-      nftTracker: nftTrackerAddr,
       threshold: 60,
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
@@ -558,7 +545,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
-        message,
+        message
       );
 
       messages.push(message);
@@ -567,7 +554,7 @@ describe("Staking", function () {
 
     // Set the parameters
     await expect(
-      staking.connect(owner).setParams(messages, signatures.slice(1)),
+      staking.connect(owner).setParams(messages, signatures.slice(1))
     ).to.be.revertedWithCustomError(staking, "LengthMismatch()");
   });
 
@@ -587,7 +574,6 @@ describe("Staking", function () {
     const params = {
       token: tokenAddr,
       nft: nftAddr,
-      nftTracker: nftTrackerAddr,
       threshold: 60,
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
@@ -603,7 +589,7 @@ describe("Staking", function () {
       user3,
       eip712domain,
       { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
-      message,
+      message
     );
 
     messages.push(message);
@@ -611,7 +597,7 @@ describe("Staking", function () {
 
     // Set the parameters
     await expect(
-      staking.connect(owner).setParams(messages, signatures),
+      staking.connect(owner).setParams(messages, signatures)
     ).to.be.revertedWithCustomError(staking, "VotingPowerZero(uint)");
   });
 
@@ -631,7 +617,6 @@ describe("Staking", function () {
     const params = {
       token: tokenAddr,
       nft: nftAddr,
-      nftTracker: nftTrackerAddr,
       threshold: 60,
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
@@ -648,7 +633,7 @@ describe("Staking", function () {
       user2,
       eip712domain,
       { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
-      message,
+      message
     );
 
     messages.push(message);
@@ -656,7 +641,7 @@ describe("Staking", function () {
 
     // Set the parameters
     await expect(
-      staking.connect(owner).setParams(messages, signatures),
+      staking.connect(owner).setParams(messages, signatures)
     ).to.be.revertedWithCustomError(staking, "StakeExpiresBeforeVote(uint)");
   });
 
@@ -676,7 +661,6 @@ describe("Staking", function () {
     const params = {
       token: tokenAddr,
       nft: nftAddr,
-      nftTracker: nftTrackerAddr,
       threshold: 60,
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
@@ -692,7 +676,7 @@ describe("Staking", function () {
       user2,
       eip712domain,
       { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
-      message,
+      message
     );
 
     messages.push(message);
@@ -704,7 +688,7 @@ describe("Staking", function () {
     await time.increase(2 * 24 * 60 * 60);
     // Set the parameters
     await expect(
-      staking.connect(owner).setParams(messages, signatures),
+      staking.connect(owner).setParams(messages, signatures)
     ).to.be.revertedWithCustomError(staking, "TopicExpired(uint)");
   });
 
@@ -729,14 +713,14 @@ describe("Staking", function () {
       user1,
       eip712domain,
       { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message,
+      message
     );
 
     const secondSignature = await signEip712(
       signerForUser1,
       eip712domain,
       { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message,
+      message
     );
 
     // Set the signer
@@ -772,7 +756,7 @@ describe("Staking", function () {
         signer,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
 
       messages.push(message);
@@ -781,6 +765,7 @@ describe("Staking", function () {
 
     // Transfer the tokens
     const preTransfer = await token.balanceOf(user1.address);
+    await staking.connect(owner).transfer(messages, signatures);
     await staking.connect(owner).transfer(messages, signatures);
 
     // Transfer data should be available
@@ -792,19 +777,19 @@ describe("Staking", function () {
 
     // getRequestedTransfer reports correct values
     expect(
-      await staking.getRequestedTransfer(transfer, user1.address),
+      await staking.getRequestedTransfer(transfer, user1.address)
     ).to.equal(true);
 
     expect(
-      await staking.getRequestedTransfer(transfer, user2.address),
+      await staking.getRequestedTransfer(transfer, user2.address)
     ).to.equal(true);
 
     expect(
-      await staking.getRequestedTransfer(transfer, user3.address),
+      await staking.getRequestedTransfer(transfer, user3.address)
     ).to.equal(true);
 
     expect(
-      await staking.getRequestedTransfer(transfer, user4.address),
+      await staking.getRequestedTransfer(transfer, user4.address)
     ).to.equal(false);
 
     // Tokens should be available in the user's account
@@ -833,14 +818,14 @@ describe("Staking", function () {
       user1,
       eip712domain,
       { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message,
+      message
     );
 
     const secondSignature = await signEip712(
       signerForUser1,
       eip712domain,
       { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message,
+      message
     );
 
     // Set the signer
@@ -855,7 +840,6 @@ describe("Staking", function () {
     const params = {
       token: tokenAddr,
       nft: nftAddr,
-      nftTracker: nftTrackerAddr,
       threshold: 60,
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
@@ -878,7 +862,7 @@ describe("Staking", function () {
         signer,
         eip712domain,
         { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
-        message,
+        message
       );
 
       messages.push(message);
@@ -886,6 +870,7 @@ describe("Staking", function () {
     }
 
     // Set the parameters
+    await staking.connect(owner).setParams(messages, signatures);
     await staking.connect(owner).setParams(messages, signatures);
 
     // Check the parameters
@@ -902,16 +887,16 @@ describe("Staking", function () {
 
     // getRequestedSetParams reports correct values
     expect(await staking.getRequestedSetParams(params, user1.address)).to.equal(
-      true,
+      true
     );
     expect(await staking.getRequestedSetParams(params, user2.address)).to.equal(
-      true,
+      true
     );
     expect(await staking.getRequestedSetParams(params, user3.address)).to.equal(
-      true,
+      true
     );
     expect(await staking.getRequestedSetParams(params, user4.address)).to.equal(
-      false,
+      false
     );
   });
 
@@ -940,14 +925,14 @@ describe("Staking", function () {
       user1,
       eip712domain,
       { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message,
+      message
     );
 
     const secondSignature = await signEip712(
       signerForUser1,
       eip712domain,
       { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message,
+      message
     );
 
     // Set the signer
@@ -966,21 +951,30 @@ describe("Staking", function () {
       nonce: 0,
     };
 
-    const nftprice = {
-      signer: user1.address,
-      ...nftSetPrice,
-    };
+    const signers = [
+      { staker: user1, signer: signerForUser1 },
+      { staker: user2, signer: user2 },
+      { staker: user3, signer: user3 },
+    ];
 
-    const signed = await signEip712(
-      signerForUser1,
-      eip712domain,
-      { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
-      nftprice,
-    );
+    for (const { staker, signer } of signers) {
+      const nftprice = {
+        signer: staker.address,
+        ...nftSetPrice,
+      };
 
-    nftprices.push(nftprice);
-    signatures.push(signed);
+      const signed = await signEip712(
+        signer,
+        eip712domain,
+        { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
+        nftprice
+      );
 
+      nftprices.push(nftprice);
+      signatures.push(signed);
+    }
+
+    await staking.connect(user1).setNftPrices(nftprices, signatures);
     await staking.connect(user1).setNftPrices(nftprices, signatures);
     const nftSetPriceKey = {
       nftId: 7,
@@ -991,10 +985,10 @@ describe("Staking", function () {
     // Call the getRequestedSetNftPrice function to check if the address has requested the set of NFT prices
     const hasRequested = await staking.getRequestedSetNftPrice(
       nftSetPriceKey,
-      user1.address,
+      user1.address
     );
     const nftPriceInfo = await staking.getSetNftPriceData(nftSetPriceKey);
-    const nftPriceResult = await staking.getNftPrice(7);
+    const nftPriceResult = await staking.getPrice(7);
 
     expect(nftPriceInfo.price).to.equal(ethers.parseUnits("5"));
     expect(nftPriceInfo.accepted).to.equal(true);
@@ -1020,7 +1014,6 @@ describe("Staking", function () {
     const params = {
       token: tokenAddr,
       nft: nftAddr,
-      nftTracker: nftTrackerAddr,
       threshold: 60,
       expiration: 60 * 60 * 24 * 7,
       collector: owner.address,
@@ -1037,7 +1030,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712SetParams: EIP712_TYPES.EIP712SetParams },
-        message,
+        message
       );
 
       messages.push(message);
@@ -1088,7 +1081,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
 
       messages.push(message);
@@ -1109,19 +1102,19 @@ describe("Staking", function () {
 
     // getRequestedTransfer reports correct values
     expect(
-      await staking.getRequestedTransfer(transfer, user4.address),
+      await staking.getRequestedTransfer(transfer, user4.address)
     ).to.equal(true);
 
     expect(
-      await staking.getRequestedTransfer(transfer, user2.address),
+      await staking.getRequestedTransfer(transfer, user2.address)
     ).to.equal(true);
 
     expect(
-      await staking.getRequestedTransfer(transfer, user3.address),
+      await staking.getRequestedTransfer(transfer, user3.address)
     ).to.equal(true);
 
     expect(
-      await staking.getRequestedTransfer(transfer, user1.address),
+      await staking.getRequestedTransfer(transfer, user1.address)
     ).to.equal(false);
 
     // Tokens should be available in the user's account
@@ -1133,7 +1126,7 @@ describe("Staking", function () {
     expect(slashData.accepted).to.equal(true);
     const postTransfersFrom = await staking["getStake(address)"](user1.address);
     expect(postTransfersFrom.amount).to.equal(
-      preTransferFrom.amount - ethers.parseUnits("100"),
+      preTransferFrom.amount - ethers.parseUnits("100")
     );
   });
 
@@ -1172,7 +1165,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
 
       messages.push(message);
@@ -1180,7 +1173,7 @@ describe("Staking", function () {
     }
 
     await expect(
-      staking.connect(owner).transfer(messages, signatures),
+      staking.connect(owner).transfer(messages, signatures)
     ).to.be.revertedWithCustomError(staking, "StakeExpiresBeforeVote(uint)");
   });
 
@@ -1216,14 +1209,14 @@ describe("Staking", function () {
       user5,
       eip712domain,
       { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-      message,
+      message
     );
 
     messages.push(message);
     signatures.push(signed);
 
     await expect(
-      staking.connect(owner).transfer(messages, signatures),
+      staking.connect(owner).transfer(messages, signatures)
     ).to.be.revertedWithCustomError(staking, "VotingPowerZero(uint)");
   });
 
@@ -1259,14 +1252,14 @@ describe("Staking", function () {
       user4,
       eip712domain,
       { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-      message,
+      message
     );
 
     messages.push(message);
     signatures.push(signed);
 
     await expect(
-      staking.connect(owner).transfer(messages, signatures),
+      staking.connect(owner).transfer(messages, signatures)
     ).to.be.revertedWithCustomError(staking, "InvalidSignature(uint)");
   });
 
@@ -1303,7 +1296,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
 
       messages.push(message);
@@ -1312,7 +1305,7 @@ describe("Staking", function () {
 
     // Transfer the tokens
     await expect(
-      staking.connect(owner).transfer(messages, signatures),
+      staking.connect(owner).transfer(messages, signatures)
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
@@ -1347,7 +1340,7 @@ describe("Staking", function () {
       user2,
       eip712domain,
       { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-      message,
+      message
     );
 
     messages.push(message);
@@ -1360,7 +1353,7 @@ describe("Staking", function () {
     await time.increase(2 * 24 * 60 * 60);
 
     await expect(
-      staking.connect(owner).transfer(messages, signatures),
+      staking.connect(owner).transfer(messages, signatures)
     ).to.be.revertedWithCustomError(staking, "TopicExpired(uint)");
   });
 
@@ -1398,7 +1391,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
 
       messages.push(message);
@@ -1408,7 +1401,7 @@ describe("Staking", function () {
     // Transfer the tokens
     const preTransfer = await token.balanceOf(user4.address);
     await expect(
-      staking.connect(owner).transfer(messages, signatures),
+      staking.connect(owner).transfer(messages, signatures)
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
@@ -1422,14 +1415,14 @@ describe("Staking", function () {
 
   it("rejects sending tokens to Unchained with no BLS address", async function () {
     await expect(
-      staking.connect(user5).transferToUnchained(ethers.parseUnits("500")),
+      staking.connect(user5).transferToUnchained(ethers.parseUnits("500"))
     ).to.be.revertedWithCustomError(staking, "BlsNotSet()");
   });
 
   it("reports the correct amount of tokens transferred to Unchained", async function () {
     await staking.connect(user1).transferToUnchained(ethers.parseUnits("500"));
     expect(await staking.getTotalLockedInUnchained()).to.equal(
-      ethers.parseUnits("500"),
+      ethers.parseUnits("500")
     );
   });
 
@@ -1466,7 +1459,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
 
       messages.push(message);
@@ -1486,19 +1479,19 @@ describe("Staking", function () {
 
     // getRequestedTransfer reports correct values
     expect(
-      await staking.getRequestedTransfer(transfer, user1.address),
+      await staking.getRequestedTransfer(transfer, user1.address)
     ).to.equal(true);
 
     expect(
-      await staking.getRequestedTransfer(transfer, user2.address),
+      await staking.getRequestedTransfer(transfer, user2.address)
     ).to.equal(true);
 
     expect(
-      await staking.getRequestedTransfer(transfer, user3.address),
+      await staking.getRequestedTransfer(transfer, user3.address)
     ).to.equal(true);
 
     expect(
-      await staking.getRequestedTransfer(transfer, user4.address),
+      await staking.getRequestedTransfer(transfer, user4.address)
     ).to.equal(false);
 
     // Tokens should be available in the user's account
@@ -1539,7 +1532,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
 
       messages.push(message);
@@ -1548,13 +1541,13 @@ describe("Staking", function () {
 
     // Transfer the tokens
     expect(
-      staking.connect(owner).transfer(messages, signatures.slice(1)),
+      staking.connect(owner).transfer(messages, signatures.slice(1))
     ).to.be.revertedWithCustomError(staking, "LengthMismatch()");
   });
 
   it("rejects transfering tokens to Unchained with zero amount", async function () {
     await expect(
-      staking.connect(user1).transferToUnchained(0),
+      staking.connect(user1).transferToUnchained(0)
     ).to.be.revertedWithCustomError(staking, "AmountZero()");
   });
 
@@ -1588,7 +1581,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
 
       messages.push(message);
@@ -1635,7 +1628,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
 
       messages.push(message);
@@ -1667,7 +1660,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
 
       duplicateMessages.push(message);
@@ -1676,7 +1669,7 @@ describe("Staking", function () {
 
     // Transfer the tokens
     expect(
-      staking.connect(owner).transfer(duplicateMessages, duplicateSignatures),
+      staking.connect(owner).transfer(duplicateMessages, duplicateSignatures)
     ).to.be.revertedWithCustomError(staking, "NonceUsed(uint256,uint256)");
   });
 
@@ -1697,14 +1690,14 @@ describe("Staking", function () {
       user1,
       eip712domain,
       { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message,
+      message
     );
 
     const secondSignature = await signEip712(
       user2,
       eip712domain,
       { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message,
+      message
     );
 
     // Set the signer
@@ -1736,7 +1729,7 @@ describe("Staking", function () {
       user1,
       eip712domain,
       { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message,
+      message
     );
 
     //invalid signature
@@ -1744,14 +1737,12 @@ describe("Staking", function () {
       user3,
       eip712domain,
       { EIP712SetSigner: EIP712_TYPES.EIP712SetSigner },
-      message,
+      message
     );
 
     // Set the signer
     await expect(
-      staking
-        .connect(owner)
-        .setSigner(message, firstSignature, secondSignature),
+      staking.connect(owner).setSigner(message, firstSignature, secondSignature)
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
@@ -1766,13 +1757,13 @@ describe("Staking", function () {
 
   it("reverts if the NFT is not the expected one", async function () {
     await expect(
-      staking.onERC721Received(user1.address, user2.address, 123, "0x"),
+      staking.onERC721Received(user1.address, user2.address, 123, "0x")
     ).to.be.revertedWithCustomError(staking, "WrongNFT()");
   });
 
   it("reverts if accepting NFT is forbidden", async function () {
     await expect(
-      nft.connect(user1).safeTransferFrom(user1.address, stakingAddr, 1),
+      nft.connect(user1).safeTransferFrom(user1.address, stakingAddr, 1)
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
@@ -1783,10 +1774,11 @@ describe("Staking", function () {
         .connect(user)
         .stake(25 * 60 * 60 * 24, ethers.parseUnits("50"), []);
     }
-    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("200"));
+
+    await token.connect(user1).approve(stakingAddr, ethers.parseUnits("255"));
     await staking
       .connect(user1)
-      .stake(25 * 60 * 60 * 24, ethers.parseUnits("200"), [1, 2]);
+      .stake(25 * 60 * 60 * 24, ethers.parseUnits("255"), []);
 
     // Sign EIP712 message for setNftPrice
     const nftprices = [];
@@ -1799,39 +1791,48 @@ describe("Staking", function () {
       nonce: 0,
     };
 
-    const nftprice = {
-      signer: user1.address,
-      ...nftSetPrice,
-    };
+    for (const user of [user1]) {
+      const nftprice = {
+        signer: user.address,
+        ...nftSetPrice,
+      };
 
-    const signed = await signEip712(
-      user1,
-      eip712domain,
-      { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
-      nftprice,
-    );
+      const signed = await signEip712(
+        user,
+        eip712domain,
+        { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
+        nftprice
+      );
 
-    nftprices.push(nftprice);
-    signatures.push(signed);
+      nftprices.push(nftprice);
+      signatures.push(signed);
+    }
 
     await staking.connect(user1).setNftPrices(nftprices, signatures);
+
     const nftSetPriceKey = {
       nftId: 7,
       price: ethers.parseUnits("5"),
       nonce: 0,
     };
 
+    const nftPriceInfoFirst = await staking.getSetNftPriceData(nftSetPriceKey);
+
+    expect(nftPriceInfoFirst.accepted).to.equal(true);
+
+    await staking.connect(user1).setNftPrices(nftprices, signatures);
+
     // Call the getRequestedSetNftPrice function to check if the address has requested the set of NFT prices
     const hasRequested = await staking.getRequestedSetNftPrice(
       nftSetPriceKey,
-      user1.address,
+      user1.address
     );
-    const nftPriceInfo = await staking.getSetNftPriceData(nftSetPriceKey);
-    const nftPriceResult = await staking.getNftPrice(7);
+    const nftPriceInfoSecond = await staking.getSetNftPriceData(nftSetPriceKey);
+    const nftPriceResult = await staking.getPrice(7);
 
-    expect(nftPriceInfo.price).to.equal(ethers.parseUnits("5"));
-    expect(nftPriceInfo.accepted).to.equal(true);
-    expect(nftPriceInfo.voted).to.equal(ethers.parseUnits("200"));
+    expect(nftPriceInfoSecond.price).to.equal(ethers.parseUnits("5"));
+    expect(nftPriceInfoSecond.accepted).to.equal(true);
+    expect(nftPriceInfoSecond.voted).to.equal(ethers.parseUnits("255"));
 
     expect(nftPriceResult).to.equal(ethers.parseUnits("5"));
     expect(hasRequested).to.equal(true);
@@ -1869,7 +1870,7 @@ describe("Staking", function () {
       user1,
       eip712domain,
       { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
-      nftprice,
+      nftprice
     );
 
     nftprices.push(nftprice);
@@ -1885,10 +1886,10 @@ describe("Staking", function () {
     // Call the getRequestedSetNftPrice function to check if the address has requested the set of NFT prices
     const hasRequested = await staking.getRequestedSetNftPrice(
       nftSetPriceKey,
-      user1.address,
+      user1.address
     );
     const nftPriceInfo = await staking.getSetNftPriceData(nftSetPriceKey);
-    const nftPriceResult = await staking.getNftPrice(7);
+    const nftPriceResult = await staking.getPrice(7);
 
     expect(nftPriceInfo.price).to.equal(ethers.parseUnits("5"));
     expect(nftPriceInfo.accepted).to.equal(false);
@@ -1941,7 +1942,7 @@ describe("Staking", function () {
       user1,
       eip712domain,
       { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
-      nftprice,
+      nftprice
     );
 
     nftprices.push(nftprice);
@@ -1949,7 +1950,7 @@ describe("Staking", function () {
     signatures.push(signed);
 
     await expect(
-      staking.connect(user1).setNftPrices(nftprices, signatures),
+      staking.connect(user1).setNftPrices(nftprices, signatures)
     ).to.be.revertedWithCustomError(staking, "LengthMismatch()");
   });
 
@@ -1987,14 +1988,14 @@ describe("Staking", function () {
       user1,
       eip712domain,
       { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
-      nftprice,
+      nftprice
     );
 
     nftprices.push(nftprice);
     signatures.push(signed);
 
     await expect(
-      staking.connect(user1).setNftPrices(nftprices, signatures),
+      staking.connect(user1).setNftPrices(nftprices, signatures)
     ).to.be.revertedWithCustomError(staking, "Forbidden()");
   });
 
@@ -2029,14 +2030,14 @@ describe("Staking", function () {
       user1,
       eip712domain,
       { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
-      nftprice,
+      nftprice
     );
 
     nftprices.push(nftprice);
     signatures.push(signed);
 
     await expect(
-      staking.connect(user1).setNftPrices(nftprices, signatures),
+      staking.connect(user1).setNftPrices(nftprices, signatures)
     ).to.be.revertedWithCustomError(staking, "VotingPowerZero(uint)");
   });
 
@@ -2072,14 +2073,14 @@ describe("Staking", function () {
       user2,
       eip712domain,
       { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
-      nftprice,
+      nftprice
     );
 
     nftprices.push(nftprice);
     signatures.push(signed);
 
     await expect(
-      staking.connect(user1).setNftPrices(nftprices, signatures),
+      staking.connect(user1).setNftPrices(nftprices, signatures)
     ).to.be.revertedWithCustomError(staking, "InvalidSignature(uint)");
   });
 
@@ -2117,14 +2118,14 @@ describe("Staking", function () {
       user1,
       eip712domain,
       { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
-      nftprice,
+      nftprice
     );
 
     nftprices.push(nftprice);
     signatures.push(signed);
 
     await expect(
-      staking.connect(user1).setNftPrices(nftprices, signatures),
+      staking.connect(user1).setNftPrices(nftprices, signatures)
     ).to.be.revertedWithCustomError(staking, "StakeExpiresBeforeVote(uint)");
   });
 
@@ -2160,7 +2161,7 @@ describe("Staking", function () {
       user1,
       eip712domain,
       { EIP712SetNftPrice: EIP712_TYPES.EIP712SetNftPrice },
-      nftprice,
+      nftprice
     );
 
     nftprices.push(nftprice);
@@ -2171,7 +2172,7 @@ describe("Staking", function () {
     await time.increase(2 * 24 * 60 * 60);
 
     await expect(
-      staking.connect(user1).setNftPrices(nftprices, signatures),
+      staking.connect(user1).setNftPrices(nftprices, signatures)
     ).to.be.revertedWithCustomError(staking, "TopicExpired(uint)");
   });
 
@@ -2185,34 +2186,6 @@ describe("Staking", function () {
       await staking["getVotingPower(bytes20)"](user1bls);
 
     expect(votingPowerOfUser).to.equal(ethers.parseUnits("200"));
-  });
-
-  it("allows the owner to call the setPrices function on the nftTracker", async function () {
-    const nftIds = [6, 7];
-    const prices = [ethers.parseUnits("6"), ethers.parseUnits("7")];
-
-    //Deploy Mock NFT tracker
-    const NewNFTTracker = await ethers.getContractFactory("NFTTracker");
-    const newNftTracker = await NewNFTTracker.deploy();
-
-    await newNftTracker["setPrices(uint256[],uint256[])"](nftIds, prices);
-    const priceOfNft1 = await newNftTracker["getPrice(uint256)"](6);
-    const priceOfNft2 = await newNftTracker["getPrice(uint256)"](7);
-    expect(priceOfNft1).to.equal(ethers.parseUnits("6"));
-    expect(priceOfNft2).to.equal(ethers.parseUnits("7"));
-  });
-
-  it("reverts if nftIds and prices length mismatch", async function () {
-    const nftIds = [6, 7];
-    const prices = [ethers.parseUnits("6")];
-
-    //Deploy Mock NFT tracker
-    const NewNFTTracker = await ethers.getContractFactory("NFTTracker");
-    const newNftTracker = await NewNFTTracker.deploy();
-
-    await expect(
-      newNftTracker["setPrices(uint256[],uint256[])"](nftIds, prices),
-    ).to.be.revertedWithCustomError(staking, "LengthMismatch()");
   });
 
   // Simulations of possible Unchained scenarios
@@ -2246,7 +2219,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
       messages.push(message);
       signatures.push(signed);
@@ -2299,7 +2272,7 @@ describe("Staking", function () {
         user,
         eip712domain,
         { EIP712Transfer: EIP712_TYPES.EIP712Transfer },
-        message,
+        message
       );
       messages.push(message);
       signatures.push(signed);
@@ -2311,5 +2284,47 @@ describe("Staking", function () {
     // The validator should receive the gas fees
     const postTransfer = await token.balanceOf(user4.address);
     expect(postTransfer).to.equal(preTransfer + ethers.parseUnits("100"));
+  });
+
+  it("rejects non-owner calls", async function () {
+    await expect(
+      staking.connect(user1).recoverERC20(tokenAddr, owner.address, 100)
+    ).to.be.revertedWithCustomError(
+      staking,
+      "OwnableUnauthorizedAccount(address)"
+    );
+  });
+
+  it("should prevent reentrancy attacks", async function () {
+    const Attacker = await ethers.getContractFactory("Attacker");
+    const attacker = await Attacker.deploy(stakingAddr, tokenAddr);
+
+    const attackerAddr = await attacker.getAddress();
+    await staking.transferOwnership(attackerAddr);
+    const attackerbls = randomBytes(20);
+    await attacker.setBls(attackerbls);
+
+    await token.connect(owner).approve(attackerAddr, ethers.parseUnits("500"));
+    await token.connect(owner).transfer(attackerAddr, ethers.parseUnits("500"));
+    await attacker.approve(stakingAddr, ethers.parseUnits("500"));
+
+    // Set BLS addresses for users
+    await attacker.stakeToStakingContract(
+      25 * 60 * 60 * 24,
+      ethers.parseUnits("500"),
+      []
+    );
+    await time.increase(30 * 24 * 60 * 60);
+    // Call the recoverERC20 function from the attacker contract
+    await expect(attacker.attack()).to.emit(attacker, "AttackFailed");
+
+    // Check balances after the attack
+    const stakingBalance = await token.balanceOf(stakingAddr);
+    const attackBalance = await token.balanceOf(attackerAddr);
+
+    expect(attackBalance).to.equal(ethers.parseUnits("500"));
+
+    // Assert that the Staking contract's balance remains the same
+    expect(stakingBalance).to.equal(0);
   });
 });

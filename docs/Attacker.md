@@ -1,36 +1,59 @@
-# NFTTracker
+# Attacker
 
 
 
-> NFTTracker
 
 
 
-*Contract to track the prices of NFTs*
+
+
 
 ## Methods
 
-### getPrice
+### approve
 
 ```solidity
-function getPrice(uint256 nftId) external view returns (uint256)
+function approve(address addr, uint256 amount) external nonpayable
 ```
 
 
 
-*Get the price of an NFT*
+
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| nftId | uint256 | The id of the NFT |
+| addr | address | undefined |
+| amount | uint256 | undefined |
+
+### attack
+
+```solidity
+function attack() external nonpayable
+```
+
+
+
+
+
+
+### contractOwner
+
+```solidity
+function contractOwner() external view returns (address)
+```
+
+
+
+
+
 
 #### Returns
 
 | Name | Type | Description |
 |---|---|---|
-| _0 | uint256 | The price of the NFT |
+| _0 | address | undefined |
 
 ### owner
 
@@ -60,39 +83,73 @@ function renounceOwnership() external nonpayable
 *Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.*
 
 
-### setPrice
+### setBls
 
 ```solidity
-function setPrice(uint256 nftId, uint256 price) external nonpayable
+function setBls(bytes20 blsAddress) external nonpayable
 ```
 
 
 
-*Set the price of an NFT*
+
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| nftId | uint256 | The id of the NFT |
-| price | uint256 | The price of the NFT |
+| blsAddress | bytes20 | undefined |
 
-### setPrices
+### stakeToStakingContract
 
 ```solidity
-function setPrices(uint256[] nftIds, uint256[] prices) external nonpayable
+function stakeToStakingContract(uint256 duration, uint256 amount, uint256[] nftIds) external nonpayable
 ```
 
 
 
-*Set the prices of multiple NFTs*
+
 
 #### Parameters
 
 | Name | Type | Description |
 |---|---|---|
-| nftIds | uint256[] | The ids of the NFTs |
-| prices | uint256[] | The prices of the NFTs |
+| duration | uint256 | undefined |
+| amount | uint256 | undefined |
+| nftIds | uint256[] | undefined |
+
+### target
+
+```solidity
+function target() external view returns (contract UnchainedStaking)
+```
+
+
+
+
+
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | contract UnchainedStaking | undefined |
+
+### token
+
+```solidity
+function token() external view returns (contract IERC20)
+```
+
+
+
+
+
+
+#### Returns
+
+| Name | Type | Description |
+|---|---|---|
+| _0 | contract IERC20 | undefined |
 
 ### transferOwnership
 
@@ -114,6 +171,22 @@ function transferOwnership(address newOwner) external nonpayable
 
 ## Events
 
+### AttackFailed
+
+```solidity
+event AttackFailed(string error)
+```
+
+
+
+
+
+#### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| error  | string | undefined |
+
 ### OwnershipTransferred
 
 ```solidity
@@ -134,17 +207,6 @@ event OwnershipTransferred(address indexed previousOwner, address indexed newOwn
 
 
 ## Errors
-
-### LengthMismatch
-
-```solidity
-error LengthMismatch()
-```
-
-
-
-
-
 
 ### OwnableInvalidOwner
 
@@ -177,5 +239,16 @@ error OwnableUnauthorizedAccount(address account)
 | Name | Type | Description |
 |---|---|---|
 | account | address | undefined |
+
+### ReentrancyGuardReentrantCall
+
+```solidity
+error ReentrancyGuardReentrantCall()
+```
+
+
+
+*Unauthorized reentrant call.*
+
 
 
