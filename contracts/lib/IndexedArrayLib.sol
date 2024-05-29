@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./Array.sol";
+import "./ArrayUtils.sol";
 
-library HashArrayLib {
-    using ArrayUtils for address[];
+library IndexedArrayLib {
+    using ArrayUtils for bytes32[];
 
-    struct HashArray {
-        address[] array;
-        mapping(address => uint256) indexMap;
+    struct IndexedArray {
+        bytes32[] array;
+        mapping(bytes32 => uint256) indexMap;
     }
 
     error ElementAlreadyExists();
@@ -20,8 +20,8 @@ library HashArrayLib {
      * @return True if the element exists, false otherwise.
      */
     function has(
-        HashArray storage self,
-        address element
+        IndexedArray storage self,
+        bytes32 element
     ) internal view returns (bool) {
         return (self.array.length > 0 &&
             self.indexMap[element] < self.array.length &&
@@ -32,7 +32,7 @@ library HashArrayLib {
      * @dev Adds an element to the array.
      * @param element The element to add.
      */
-    function add(HashArray storage self, address element) internal {
+    function add(IndexedArray storage self, bytes32 element) internal {
         if (has(self, element)) {
             revert ElementAlreadyExists();
         }
@@ -45,7 +45,7 @@ library HashArrayLib {
      * @dev Removes an element from the array.
      * @param element The element to remove.
      */
-    function remove(HashArray storage self, address element) internal {
+    function remove(IndexedArray storage self, bytes32 element) internal {
         if (!has(self, element)) {
             revert ElementDoesNotExist();
         }
@@ -66,9 +66,9 @@ library HashArrayLib {
      * @return The element at the specified index.
      */
     function get(
-        HashArray storage self,
+        IndexedArray storage self,
         uint256 index
-    ) internal view returns (address) {
+    ) internal view returns (bytes32) {
         if (index >= self.array.length) {
             revert ArrayUtils.IndexOutOfBounds(index, self.array.length);
         }
@@ -83,10 +83,10 @@ library HashArrayLib {
      * @return The slice of the array.
      */
     function slice(
-        HashArray storage self,
+        IndexedArray storage self,
         uint256 start,
         uint256 end
-    ) internal view returns (address[] memory) {
+    ) internal view returns (bytes32[] memory) {
         return self.array.slice(start, end);
     }
 
@@ -94,7 +94,7 @@ library HashArrayLib {
      * @dev Returns the length of the array.
      * @return The length of the array.
      */
-    function length(HashArray storage self) internal view returns (uint256) {
+    function length(IndexedArray storage self) internal view returns (uint256) {
         return self.array.length;
     }
 
@@ -102,14 +102,14 @@ library HashArrayLib {
      * @dev Checks if the array is empty.
      * @return True if the array is empty, false otherwise.
      */
-    function isEmpty(HashArray storage self) internal view returns (bool) {
+    function isEmpty(IndexedArray storage self) internal view returns (bool) {
         return self.array.length == 0;
     }
 
     /**
      * @dev Clears the array.
      */
-    function clear(HashArray storage self) internal {
+    function clear(IndexedArray storage self) internal {
         for (uint256 i = 0; i < self.array.length; i++) {
             delete self.indexMap[self.array[i]];
         }
@@ -122,8 +122,8 @@ library HashArrayLib {
      * @return All elements in the array.
      */
     function getAll(
-        HashArray storage self
-    ) internal view returns (address[] memory) {
+        IndexedArray storage self
+    ) internal view returns (bytes32[] memory) {
         return self.array;
     }
 }

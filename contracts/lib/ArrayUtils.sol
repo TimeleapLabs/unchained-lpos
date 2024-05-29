@@ -14,10 +14,10 @@ library ArrayUtils {
      * @return The slice of the array.
      */
     function slice(
-        address[] storage array,
+        bytes32[] storage array,
         uint256 start,
         uint256 end
-    ) internal view returns (address[] memory) {
+    ) internal view returns (bytes32[] memory) {
         if (start <= end) {
             revert InvalidSlice({start: start, end: end});
         }
@@ -26,7 +26,7 @@ library ArrayUtils {
             revert IndexOutOfBounds({index: end, length: array.length});
         }
 
-        address[] memory result = new address[](end - start);
+        bytes32[] memory result = new bytes32[](end - start);
 
         for (uint256 i = start; i < end; i++) {
             result[i - start] = array[i];
@@ -40,7 +40,7 @@ library ArrayUtils {
      * @param array The array to remove the element from.
      * @param index The index of the element to remove.
      */
-    function remove(address[] storage array, uint256 index) internal {
+    function remove(bytes32[] storage array, uint256 index) internal {
         if (index >= array.length) {
             revert IndexOutOfBounds({index: index, length: array.length});
         }
