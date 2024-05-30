@@ -9,11 +9,9 @@
 pragma solidity >=0.8.0;
 
 import "./Secp256k1.sol";
-
-import "./Bip340.sol";
 import "./Bip340Util.sol";
 
-contract Bip340Ecrec is Bip340Verifier {
+library Bip340Ecrec {
     /// Uses the ecrecover hack to verify a schnorr signature more efficiently than it should.
     ///
     // Based on `https://hackmd.io/@nZ-twauPRISEa6G9zg3XRw/SyjJzSLt9`
@@ -23,7 +21,7 @@ contract Bip340Ecrec is Bip340Verifier {
         uint256 rx,
         uint256 s,
         bytes32 m
-    ) public pure override returns (bool) {
+    ) public pure returns (bool) {
         // Check pubkey, rx, and s are in-range.
         if (px >= Secp256k1.PP || rx >= Secp256k1.PP || s >= Secp256k1.NN) {
             return false;

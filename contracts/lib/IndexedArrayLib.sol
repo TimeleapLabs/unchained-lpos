@@ -4,11 +4,11 @@ pragma solidity ^0.8.24;
 import "./ArrayUtils.sol";
 
 library IndexedArrayLib {
-    using ArrayUtils for bytes32[];
+    using ArrayUtils for address[];
 
     struct IndexedArray {
-        bytes32[] array;
-        mapping(bytes32 => uint256) indexMap;
+        address[] array;
+        mapping(address => uint256) indexMap;
     }
 
     error ElementAlreadyExists();
@@ -21,7 +21,7 @@ library IndexedArrayLib {
      */
     function has(
         IndexedArray storage self,
-        bytes32 element
+        address element
     ) internal view returns (bool) {
         return (self.array.length > 0 &&
             self.indexMap[element] < self.array.length &&
@@ -32,7 +32,7 @@ library IndexedArrayLib {
      * @dev Adds an element to the array.
      * @param element The element to add.
      */
-    function add(IndexedArray storage self, bytes32 element) internal {
+    function add(IndexedArray storage self, address element) internal {
         if (has(self, element)) {
             revert ElementAlreadyExists();
         }
@@ -45,7 +45,7 @@ library IndexedArrayLib {
      * @dev Removes an element from the array.
      * @param element The element to remove.
      */
-    function remove(IndexedArray storage self, bytes32 element) internal {
+    function remove(IndexedArray storage self, address element) internal {
         if (!has(self, element)) {
             revert ElementDoesNotExist();
         }
@@ -68,7 +68,7 @@ library IndexedArrayLib {
     function get(
         IndexedArray storage self,
         uint256 index
-    ) internal view returns (bytes32) {
+    ) internal view returns (address) {
         if (index >= self.array.length) {
             revert ArrayUtils.IndexOutOfBounds(index, self.array.length);
         }
@@ -86,7 +86,7 @@ library IndexedArrayLib {
         IndexedArray storage self,
         uint256 start,
         uint256 end
-    ) internal view returns (bytes32[] memory) {
+    ) internal view returns (address[] memory) {
         return self.array.slice(start, end);
     }
 
@@ -123,7 +123,7 @@ library IndexedArrayLib {
      */
     function getAll(
         IndexedArray storage self
-    ) internal view returns (bytes32[] memory) {
+    ) internal view returns (address[] memory) {
         return self.array;
     }
 }

@@ -11,10 +11,9 @@ pragma solidity >=0.8.0;
 import "./EllipticCurve.sol";
 import "./Secp256k1.sol";
 
-import "./Bip340.sol";
 import "./Bip340Util.sol";
 
-contract Bip340Naive is Bip340Verifier {
+library Bip340Naive {
     /// Verifies a BIP340 signature parsed as `(rx, s)` form against a message
     /// `m` and a pubkey's x coord `px`.
     ///
@@ -27,7 +26,7 @@ contract Bip340Naive is Bip340Verifier {
         uint256 rx,
         uint256 s,
         bytes32 m
-    ) public pure override returns (bool) {
+    ) public pure returns (bool) {
         // Check pubkey is in range.
         if (px >= Secp256k1.PP) {
             return false;

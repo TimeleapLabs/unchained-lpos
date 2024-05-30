@@ -13,7 +13,7 @@ import "./Secp256k1.sol";
 
 import "./Bip340Util.sol";
 
-contract Bip340Batch {
+library Bip340Batch {
     /// "Invalid" constant used to signal a check failed in a function that was
     /// supposed to return a curve point.  This is outside the valid range of a
     /// x point on the curve, so this is safe to use.
