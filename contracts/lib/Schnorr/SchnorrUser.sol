@@ -3,10 +3,15 @@
 pragma solidity ^0.8.24;
 
 import "./SchnorrTx/Transfer.sol";
+import "./SchnorrTx/TransferNft.sol";
 import "./SchnorrTx/TransferOwnership.sol";
-import "./SchnorrTx/Signature.sol";
+import "./SchnorrTx/SetNftPrices.sol";
+import "./SchnorrTx/SetSchnorrThreshold.sol";
+import "./Signature.sol";
 
 contract SchnorrUser {
+    using SchnorrSignature for SchnorrSignature.Signature;
+
     uint256 public owner;
     mapping(bytes32 => bool) public processed;
 
@@ -22,7 +27,7 @@ contract SchnorrUser {
             "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
         );
 
-    bytes32 private eip712DomainHash;
+    bytes32 public eip712DomainHash;
 
     error AlreadyProcessed();
 
@@ -73,7 +78,7 @@ contract SchnorrUser {
         );
 
         checkForReplay(eip712Hash);
-        SchnorrSignature.safeVerify(eip712Hash, schnorrSignature, owner);
+        schnorrSignature.safeVerify(eip712Hash, owner);
 
         owner = txn.to;
     }
@@ -84,13 +89,46 @@ contract SchnorrUser {
     ) public {
         bytes32 eip712Hash = SchnorrTransfer.eip712Hash(txn, eip712DomainHash);
         checkForReplay(eip712Hash);
-        SchnorrSignature.safeVerify(eip712Hash, schnorrSignature, owner);
+        schnorrSignature.safeVerify(eip712Hash, owner);
+    }
+
+    function verifyTransferNft(
+        SchnorrNftTransfer.Transfer memory txn,
+        SchnorrSignature.Signature memory schnorrSignature
+    ) public {
+        bytes32 eip712Hash = SchnorrNftTransfer.eip712Hash(
+            txn,
+            eip712DomainHash
+        );
+        checkForReplay(eip712Hash);
+        schnorrSignature.safeVerify(eip712Hash, owner);
+    }
+
+    function verifySetNftPrice(
+        SetNftPrices.NftPrices memory prices,
+        SchnorrSignature.Signature memory schnorrSignature
+    ) public {
+        bytes32 eip712Hash = SetNftPrices.eip712Hash(prices, eip712DomainHash);
+        checkForReplay(eip712Hash);
+        schnorrSignature.safeVerify(eip712Hash, owner);
+    }
+
+    function verifySetSchnorrThreshold(
+        SetSchnorrThreshold.SchnorrThreshold memory threshold,
+        SchnorrSignature.Signature memory schnorrSignature
+    ) public {
+        bytes32 eip712Hash = SetSchnorrThreshold.eip712Hash(
+            threshold,
+            eip712DomainHash
+        );
+        checkForReplay(eip712Hash);
+        schnorrSignature.safeVerify(eip712Hash, owner);
     }
 
     function safeVerify(
         bytes32 eip712Hash,
         SchnorrSignature.Signature memory schnorrSignature
     ) public view {
-        SchnorrSignature.safeVerify(eip712Hash, schnorrSignature, owner);
+        schnorrSignature.safeVerify(eip712Hash, owner);
     }
 }

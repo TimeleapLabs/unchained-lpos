@@ -19,17 +19,20 @@ contract ProofOfStake is SchnorrUser {
         uint256 amount;
         uint256 end;
         uint256[] nfts;
+        uint256 nftSum;
     }
 
     mapping(address => Stake) public stakes;
+    mapping(uint256 => uint256) public nftPrices;
 
     address public stakingToken;
     address public nftToken;
-    uint256 public minSchnorrParticipantStake;
+    uint256 public schnorrParticipationThreshold = 2000000 * 1e18;
 
     error AmountZero();
     error DurationZero();
     error NoStakeToExtend();
+    error NftNotInStake();
 
     event Staked(
         address indexed user,
@@ -103,16 +106,25 @@ contract ProofOfStake is SchnorrUser {
         stakes[msg.sender].amount += amount;
         stakes[msg.sender].end += duration;
 
+        uint256 nftSum = 0;
+
         for (uint256 i = 0; i < nfts.length; i++) {
             stakes[msg.sender].nfts.push(nfts[i]);
+            nftSum += nftPrices[nfts[i]];
         }
+
+        stakes[msg.sender].nftSum += nftSum;
     }
 
     function checkAddAsSubmitter() internal {
-        if (
-            stakes[msg.sender].amount >= minSchnorrParticipantStake &&
-            !validators.has(msg.sender)
-        ) {
+        if (validators.has(msg.sender)) {
+            return;
+        }
+
+        uint256 stakeAmount = stakes[msg.sender].amount +
+            stakes[msg.sender].nftSum;
+
+        if (stakeAmount >= schnorrParticipationThreshold) {
             validators.add(msg.sender);
         }
     }
@@ -157,8 +169,63 @@ contract ProofOfStake is SchnorrUser {
     function withdraw() external {
         Stake memory userStake = stakes[msg.sender];
         transferToUser(userStake.amount, userStake.nfts);
-        validators.remove(msg.sender);
         checkRemoveSubmitter();
+        delete stakes[msg.sender];
         emit Withdrawn(msg.sender, userStake.amount, userStake.nfts);
+    }
+
+    // privileged functions
+
+    function setNftPrices(
+        SetNftPrices.NftPrices memory prices,
+        SchnorrSignature.Signature memory schnorrSignature
+    ) external {
+        verifySetNftPrice(prices, schnorrSignature);
+
+        for (uint256 i = 0; i < prices.nfts.length; i++) {
+            nftPrices[prices.nfts[i]] = prices.prices[i];
+        }
+    }
+
+    function transfer(
+        SchnorrTransfer.Transfer memory txn,
+        SchnorrSignature.Signature memory schnorrSignature
+    ) external {
+        verifyTransfer(txn, schnorrSignature);
+        stakes[txn.from].amount -= txn.amount;
+        IERC20(stakingToken).safeTransfer(txn.to, txn.amount);
+    }
+
+    function transferNft(
+        SchnorrNftTransfer.Transfer memory txn,
+        SchnorrSignature.Signature memory schnorrSignature
+    ) external {
+        verifyTransferNft(txn, schnorrSignature);
+        IERC721(nftToken).safeTransferFrom(address(this), txn.to, txn.id);
+        // remove nft from stakes
+        bool found;
+        uint256[] storage nfts = stakes[txn.from].nfts;
+        uint256 len = nfts.length;
+
+        for (uint256 i = 0; i < len; i++) {
+            if (nfts[i] == txn.id) {
+                nfts[i] = nfts[len - 1];
+                nfts.pop();
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            revert NftNotInStake();
+        }
+    }
+
+    function setSchNorrParticipationThreshold(
+        SetSchnorrThreshold.SchnorrThreshold memory threshold,
+        SchnorrSignature.Signature memory schnorrSignature
+    ) external {
+        verifySetSchnorrThreshold(threshold, schnorrSignature);
+        schnorrParticipationThreshold = threshold.threshold;
     }
 }
