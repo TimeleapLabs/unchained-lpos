@@ -78,12 +78,19 @@ contract SchnorrUser {
         owner = txn.to;
     }
 
-    function transfer(
+    function verifyTransfer(
         SchnorrTransfer.Transfer memory txn,
         SchnorrSignature.Signature memory schnorrSignature
     ) public {
         bytes32 eip712Hash = SchnorrTransfer.eip712Hash(txn, eip712DomainHash);
         checkForReplay(eip712Hash);
+        SchnorrSignature.safeVerify(eip712Hash, schnorrSignature, owner);
+    }
+
+    function safeVerify(
+        bytes32 eip712Hash,
+        SchnorrSignature.Signature memory schnorrSignature
+    ) public view {
         SchnorrSignature.safeVerify(eip712Hash, schnorrSignature, owner);
     }
 }
