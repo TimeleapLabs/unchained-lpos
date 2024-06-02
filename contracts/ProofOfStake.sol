@@ -29,6 +29,7 @@ contract ProofOfStake is SchnorrUser {
     address public nftToken;
     uint256 public schnorrParticipationThreshold = 2000000 * 1e18;
 
+    error AlreadyStaked();
     error AmountZero();
     error DurationZero();
     error NoStakeToExtend();
@@ -46,8 +47,13 @@ contract ProofOfStake is SchnorrUser {
     event Withdrawn(address indexed user, uint256 amount, uint256[] nfts);
 
     constructor(
-        uint256 shcnorrOwner
-    ) SchnorrUser("Unchained Proof of Stake", "1.0.0", shcnorrOwner) {}
+        uint256 shcnorrOwner,
+        address stakingTokenAddress,
+        address nftTokenAddress
+    ) SchnorrUser("Unchained Proof of Stake", "1.0.0", shcnorrOwner) {
+        stakingToken = stakingTokenAddress;
+        nftToken = nftTokenAddress;
+    }
 
     function getValidators() external view returns (address[] memory) {
         return validators.getAll();
@@ -85,6 +91,16 @@ contract ProofOfStake is SchnorrUser {
                 msg.sender,
                 nfts[i]
             );
+        }
+    }
+
+    function newStakeSanityChecks(
+        uint256 amount,
+        uint256 duration
+    ) internal view {
+        stakeSanityChecks(amount, duration);
+        if (getStake(msg.sender).end != 0) {
+            revert AlreadyStaked();
         }
     }
 
@@ -140,7 +156,7 @@ contract ProofOfStake is SchnorrUser {
         uint256 duration,
         uint256[] calldata nfts
     ) external {
-        stakeSanityChecks(amount, duration);
+        newStakeSanityChecks(amount, duration);
         transferFromUser(amount, nfts);
         updateStakeValues(amount, block.timestamp + duration, nfts);
         checkAddAsSubmitter();

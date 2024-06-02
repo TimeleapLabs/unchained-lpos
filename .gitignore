@@ -15,5 +15,5 @@ artifacts
 #Python
 venv
 
-#Go
-abi
+# Remix
+.states

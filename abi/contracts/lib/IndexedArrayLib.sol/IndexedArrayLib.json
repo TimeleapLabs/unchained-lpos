@@ -1,0 +1,12 @@
+[
+  {
+    "inputs": [],
+    "name": "ElementAlreadyExists",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ElementDoesNotExist",
+    "type": "error"
+  }
+]
