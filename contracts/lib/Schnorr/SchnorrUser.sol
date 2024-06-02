@@ -11,6 +11,11 @@ import "./Signature.sol";
 
 contract SchnorrUser {
     using SchnorrSignature for SchnorrSignature.Signature;
+    using SchnorrTransfer for SchnorrTransfer.Transfer;
+    using SchnorrNftTransfer for SchnorrNftTransfer.Transfer;
+    using SchnorrTransferOwnership for SchnorrTransferOwnership.TransferOwnership;
+    using SetNftPrices for SetNftPrices.NftPrices;
+    using SetSchnorrThreshold for SetSchnorrThreshold.SchnorrThreshold;
 
     uint256 public owner;
     mapping(bytes32 => bool) public processed;
@@ -72,10 +77,7 @@ contract SchnorrUser {
         SchnorrTransferOwnership.TransferOwnership memory txn,
         SchnorrSignature.Signature memory schnorrSignature
     ) public {
-        bytes32 eip712Hash = SchnorrTransferOwnership.eip712Hash(
-            txn,
-            eip712DomainHash
-        );
+        bytes32 eip712Hash = txn.eip712Hash(eip712DomainHash);
 
         checkForReplay(eip712Hash);
         schnorrSignature.safeVerify(eip712Hash, owner);
@@ -87,7 +89,7 @@ contract SchnorrUser {
         SchnorrTransfer.Transfer memory txn,
         SchnorrSignature.Signature memory schnorrSignature
     ) public {
-        bytes32 eip712Hash = SchnorrTransfer.eip712Hash(txn, eip712DomainHash);
+        bytes32 eip712Hash = txn.eip712Hash(eip712DomainHash);
         checkForReplay(eip712Hash);
         schnorrSignature.safeVerify(eip712Hash, owner);
     }
@@ -96,10 +98,7 @@ contract SchnorrUser {
         SchnorrNftTransfer.Transfer memory txn,
         SchnorrSignature.Signature memory schnorrSignature
     ) public {
-        bytes32 eip712Hash = SchnorrNftTransfer.eip712Hash(
-            txn,
-            eip712DomainHash
-        );
+        bytes32 eip712Hash = txn.eip712Hash(eip712DomainHash);
         checkForReplay(eip712Hash);
         schnorrSignature.safeVerify(eip712Hash, owner);
     }
@@ -108,7 +107,7 @@ contract SchnorrUser {
         SetNftPrices.NftPrices memory prices,
         SchnorrSignature.Signature memory schnorrSignature
     ) public {
-        bytes32 eip712Hash = SetNftPrices.eip712Hash(prices, eip712DomainHash);
+        bytes32 eip712Hash = prices.eip712Hash(eip712DomainHash);
         checkForReplay(eip712Hash);
         schnorrSignature.safeVerify(eip712Hash, owner);
     }
@@ -117,10 +116,7 @@ contract SchnorrUser {
         SetSchnorrThreshold.SchnorrThreshold memory threshold,
         SchnorrSignature.Signature memory schnorrSignature
     ) public {
-        bytes32 eip712Hash = SetSchnorrThreshold.eip712Hash(
-            threshold,
-            eip712DomainHash
-        );
+        bytes32 eip712Hash = threshold.eip712Hash(eip712DomainHash);
         checkForReplay(eip712Hash);
         schnorrSignature.safeVerify(eip712Hash, owner);
     }
